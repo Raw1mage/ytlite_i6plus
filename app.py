@@ -96,7 +96,10 @@ def watch():
     if not stream_url:
         return "Error fetching video stream. Check server logs."
         
-    return render_template('watch.html', stream_url=stream_url, info=info)
+    mime_type = "video/mp4"
+    if ".m3u8" in stream_url:
+        mime_type = "application/vnd.apple.mpegurl"
+    return render_template('watch.html', stream_url=stream_url, info=info, mime_type=mime_type)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
