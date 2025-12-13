@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="text-align: center; margin-top: 50px;">
+    <h2 style="color: #aaa;">Search YouTube</h2>
+    <form action="/search" method="get" class="search-box">
+        <input type="text" name="q" placeholder="What do you want to watch?" required autofocus>
+        <button type="submit">Go</button>
+    </form>
+    <div style="margin-top: 30px; font-size: 0.8em; color: #555;">Running on iPhone 6 Plus (iOS 12)</div>
+</div>
+{% endblock %}

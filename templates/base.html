@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="YT Lite">
+    <title>YT Lite</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        header {
+            background-color: #202020;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2em;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+        a { color: inherit; text-decoration: none; }
+        .container { padding: 15px; }
+        .search-box { display: flex; margin-bottom: 20px; }
+        input[type="text"] {
+            flex: 1; padding: 10px; border-radius: 4px 0 0 4px;
+            border: none; background: #333; color: #fff; font-size: 16px;
+        }
+        button {
+            padding: 10px 20px; border-radius: 0 4px 4px 0;
+            border: none; background: #cc0000; color: white; font-weight: bold;
+        }
+        .video-item {
+            display: flex; margin-bottom: 15px; background: #1e1e1e;
+            border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .video-thumb { width: 120px; background-color: #000; object-fit: cover; }
+        .video-info { padding: 10px; flex: 1; }
+        .video-title {
+            font-size: 0.95em; font-weight: 600; margin-bottom: 5px;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .video-meta { font-size: 0.8em; color: #aaa; }
+    </style>
+</head>
+<body>
+    <header><a href="/">YT Lite</a></header>
+    <div class="container">{% block content %}{% endblock %}</div>
+</body>
+</html>

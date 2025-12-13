@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<form action="/search" method="get" class="search-box">
+    <input type="text" name="q" value="{{ query }}" required>
+    <button type="submit">Go</button>
+</form>
+<div class="results">
+    {% for video in results %}
+    <a href="/watch?v={{ video.id }}">
+        <div class="video-item">
+            <img class="video-thumb" src="https://i.ytimg.com/vi/{{ video.id }}/mqdefault.jpg" loading="lazy">
+            <div class="video-info">
+                <div class="video-title">{{ video.title }}</div>
+                <div class="video-meta">{{ video.duration_string }} • {{ video.uploader }}</div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}
