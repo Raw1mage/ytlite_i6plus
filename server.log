@@ -1,0 +1,10 @@
+An error occurred: module 'importlib.metadata' has no attribute 'packages_distributions'
+/usr/local/lib/python3.9/dist-packages/google/api_core/_python_version_support.py:252: FutureWarning: You are using a Python version (3.9.9) past its end of life. Google will update google.api_core with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade to the latest Python version, or at least Python 3.10, and then update google.api_core.
+  warnings.warn(message, FutureWarning)
+ * Serving Flask app 'app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:80
+ * Running on http://192.168.100.71:80
+[33mPress CTRL+C to quit[0m

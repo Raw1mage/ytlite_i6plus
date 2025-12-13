@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <form action="/search" method="get" class="search-box">
-    <input type="text" name="q" value="{{ query }}" required>
+    <input type="search" name="q" value="{{ query }}" required>
     <button type="submit">Go</button>
 </form>
 <div class="results">
