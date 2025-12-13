@@ -54,80 +54,155 @@ def index():
     credentials = get_credentials()
     return render_template('index.html', logged_in=(credentials is not None))
 
+@app.route('/api/get_stream')
+def api_get_stream():
+    video_id = request.args.get('v')
+    if not video_id: return jsonify({"error": "No video ID provided"}), 400
+    
+    stream_url, info = get_yt_stream(video_id)
+    if not stream_url:
+        return jsonify({"error": "Could not fetch stream"}), 500
+        
+    return jsonify({
+        "stream_url": stream_url,
+        "info": info
+    })
+
 @app.route('/api/videos')
 def api_videos():
     print("DEBUG: Sequential api_videos started")
+    category = request.args.get('category', 'all')
+    next_page_token = request.args.get('pageToken', '')
+    
     credentials = get_credentials()
+    # allow search for non-logged-in users if category is provided (using yt-dlp fallback if needed? actually let's require login for API for now to utilize quota efficiently, or use fallback)
+    # But existing logic requires login. The user asked for "Logged in homepage".
+    
     if not credentials:
         return jsonify({"error": "Not logged in"}), 401
     
     try:
         youtube = googleapiclient.discovery.build("youtube", "v3", credentials=credentials)
         
-        # 1. Get Subscriptions (Limit to 8 to keep it fast)
-        subs_resp = youtube.subscriptions().list(
-            part="snippet,contentDetails",
-            mine=True,
-            maxResults=8, 
-            order="relevance"
-        ).execute()
+        videos = []
+        new_token = ""
         
-        potential_videos = []
-        
-        # 2. Sequential Fetch
-        for sub in subs_resp.get('items', []):
-            try:
-                channel_title = sub['snippet']['title']
-                print(f"DEBUG: Fetching channel {channel_title}")
-                channel_id = sub['snippet']['resourceId']['channelId']
-                uploads_playlist_id = 'UU' + channel_id[2:]
+        if category == 'all':
+            # Existing Subscriptions Logic
+            # 1. Get Subscriptions (Limit to 8 to keep it fast)
+            subs_resp = youtube.subscriptions().list(
+                part="snippet,contentDetails",
+                mine=True,
+                maxResults=8, 
+                order="relevance"
+            ).execute()
+            
+            potential_videos = []
+            
+            # 2. Sequential Fetch
+            for sub in subs_resp.get('items', []):
+                try:
+                    channel_title = sub['snippet']['title']
+                    # print(f"DEBUG: Fetching channel {channel_title}")
+                    channel_id = sub['snippet']['resourceId']['channelId']
+                    uploads_playlist_id = 'UU' + channel_id[2:]
+                    
+                    pl_resp = youtube.playlistItems().list(
+                        part="snippet,contentDetails",
+                        playlistId=uploads_playlist_id,
+                        maxResults=2 # Get 2 latest per channel
+                    ).execute()
+                    
+                    for item in pl_resp.get('items', []):
+                        vid_id = item['contentDetails']['videoId']
+                        potential_videos.append({
+                            "id": vid_id,
+                            "title": item['snippet']['title'],
+                            "thumbnail": item['snippet']['thumbnails']['medium']['url'],
+                            "uploader": item['snippet']['channelTitle'],
+                            "publishedAt": item['snippet']['publishedAt']
+                        })
+                except Exception as e:
+                    print(f"DEBUG: Error fetching channel: {e}")
+                    continue
+            
+            videos = potential_videos
+
+        else:
+            # Search Logic for Categories
+            search_q = ""
+            search_type = "video"
+            event_type = None
+            
+            if category == 'news': search_q = "新聞"
+            elif category == 'podcast': search_q = "Podcast"
+            elif category == 'live': 
+                search_q = "" # Search everything live? or just top live?
+                event_type = 'live'
+            
+            print(f"DEBUG: Searching category {category}, query='{search_q}', event='{event_type}'")
+            
+            search_params = {
+                "part": "id,snippet",
+                "maxResults": 15,
+                "type": "video",
+                "q": search_q,
+                "pageToken": next_page_token
+            }
+            if event_type:
+                search_params['eventType'] = event_type
                 
-                pl_resp = youtube.playlistItems().list(
-                    part="snippet,contentDetails",
-                    playlistId=uploads_playlist_id,
-                    maxResults=2 # Get 2 latest per channel
-                ).execute()
-                
-                for item in pl_resp.get('items', []):
-                    vid_id = item['contentDetails']['videoId']
-                    potential_videos.append({
-                        "id": vid_id,
-                        "title": item['snippet']['title'],
-                        "thumbnail": item['snippet']['thumbnails']['medium']['url'],
-                        "uploader": item['snippet']['channelTitle'],
-                        "publishedAt": item['snippet']['publishedAt']
-                    })
-            except Exception as e:
-                print(f"DEBUG: Error fetching channel: {e}")
-                continue
-        
-        if not potential_videos:
+            search_resp = youtube.search().list(**search_params).execute()
+            
+            new_token = search_resp.get('nextPageToken', '')
+            for item in search_resp.get('items', []):
+                 videos.append({
+                    "id": item["id"]["videoId"],
+                    "title": item["snippet"]["title"],
+                    "thumbnail": item["snippet"]["thumbnails"]["medium"]["url"],
+                    "uploader": item["snippet"]["channelTitle"],
+                    "publishedAt": item["snippet"]["publishedAt"]  
+                 })
+
+        if not videos:
              return jsonify({"videos": [], "nextPageToken": ""})
 
-        # 3. Batch Duration Check
-        print(f"DEBUG: Checking duration for {len(potential_videos)} videos")
-        video_ids = [v['id'] for v in potential_videos]
-        vid_details_resp = youtube.videos().list(
-            part="contentDetails",
-            id=','.join(video_ids)
-        ).execute()
+        # 3. Batch Duration Check (Common for both paths)
+        # Only check duration if we need strict filtering (e.g. Shorts).
+        # For simplicity and speed on iPhone, maybe skip duration check for search results?
+        # Let's keep it but handle errors gracefully.
         
+        print(f"DEBUG: Checking duration for {len(videos)} videos")
+        video_ids = [v['id'] for v in videos]
+        # Chunking to avoid URL length issues if many results
+        chunk_size = 50
         duration_map = {}
-        for item in vid_details_resp.get('items', []):
-            duration_map[item['id']] = parse_duration(item['contentDetails']['duration'])
+        
+        for i in range(0, len(video_ids), chunk_size):
+            chunk = video_ids[i:i+chunk_size]
+            vid_details_resp = youtube.videos().list(
+                part="contentDetails",
+                id=','.join(chunk)
+            ).execute()
+            
+            for item in vid_details_resp.get('items', []):
+                duration_map[item['id']] = parse_duration(item['contentDetails']['duration'])
             
         final_videos = []
-        for v in potential_videos:
+        for v in videos:
             duration = duration_map.get(v['id'], 0)
+            # Filter shorts (<60s)
             if duration > 60:
                 final_videos.append(v)
         
-        final_videos.sort(key=lambda x: x['publishedAt'], reverse=True)
+        # Sort only if it's the subscription feed (mixed sources). Search results usually come ranked.
+        if category == 'all':
+            final_videos.sort(key=lambda x: x['publishedAt'], reverse=True)
         
         print(f"DEBUG: Done. Returning {len(final_videos)} videos")
         return jsonify({
             "videos": final_videos,
-            "nextPageToken": "" 
+            "nextPageToken": new_token 
         })
 
     except Exception as e:
@@ -158,18 +233,65 @@ def search():
         except: continue
     return render_template('results.html', results=results, query=query, logged_in=False)
 
+
 def get_yt_stream(video_id):
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     try:
-        cmd = [YTDLP_CMD, "-g", "-f", "best", video_url]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
-        if result.returncode != 0: return None, None
-        stream_url = result.stdout.strip()
-        cmd_info = [YTDLP_CMD, "--dump-json", "--skip-download", video_url]
-        result_info = subprocess.run(cmd_info, capture_output=True, text=True, timeout=25)
-        info = json.loads(result_info.stdout)
+        import shlex
+        # Optimization: Get both stream URL and metadata in ONE call
+        # Using shell=True to bypass iOS subprocess execve issues (invalid literal for int() with base 16)
+        
+        # Construct command parts
+        cmd_parts = [YTDLP_CMD, "--dump-json", "-f", "best[ext=mp4]", video_url]
+        # properly quote for shell
+        cmd_str = ' '.join(shlex.quote(s) for s in cmd_parts)
+        
+        print(f"DEBUG: Running shell command: {cmd_str}")
+        
+        # close_fds=False is sometimes needed on mobile, but shell=True usually isolates enough
+        result = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, timeout=60)
+        
+        if result.returncode != 0:
+             print(f"ERROR: yt-dlp shell call failed: {result.stderr}")
+             return None, None
+             
+        # yt-dlp --dump-json output might contain warnings on lines before the JSON
+        # We need to find the line that is valid JSON.
+        info = None
+        for line in result.stdout.splitlines():
+             try:
+                 possible_json = json.loads(line)
+                 if 'url' in possible_json:
+                     info = possible_json
+                     break
+             except:
+                 continue
+                 
+        if not info:
+             # If no JSON line found, maybe try parsing the whole thing (unlikely for dump-json but possible)
+             try:
+                 info = json.loads(result.stdout)
+             except:
+                 print("ERROR: Could not parse JSON from yt-dlp output")
+                 return None, None
+
+        stream_url = info.get('url')
+        
+        if not stream_url:
+            print("ERROR: No 'url' found in yt-dlp JSON output")
+            return None, None
+            
+        print(f"DEBUG: Stream URL obtained from JSON: {stream_url[:50]}...")
         return stream_url, info
-    except: return None, None
+        
+    except subprocess.TimeoutExpired:
+        print("ERROR: yt-dlp timed out (60s)")
+        return None, None
+    except Exception as e: 
+        import traceback
+        traceback.print_exc()
+        print(f"ERROR: get_yt_stream exception: {e}")
+        return None, None
 
 @app.route('/watch')
 def watch():

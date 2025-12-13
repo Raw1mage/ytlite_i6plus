@@ -70,9 +70,19 @@
     }
 </style>
 
+
+<div class="search-bar-container" style="padding: 10px 0;">
+    <form action="/search" method="get" class="search-box">
+        <input type="search" name="q" placeholder="搜尋 YouTube..." required inputmode="search" enterkeyhint="search" style="width: 100%; padding: 10px; border-radius: 5px; border: none; background: #222; color: #fff;">
+    </form>
+</div>
+
 <div class="chips-container">
     <div class="chip active" onclick="loadCategory('all', this)">全部</div>
-    <div class="chip" onclick="loadCategory('live', this)">直播中</div>
+    <div class="chip" onclick="loadCategory('news', this)">新聞</div>
+    <div class="chip" onclick="loadCategory('live', this)">直播</div>
+    <div class="chip" onclick="loadCategory('podcast', this)">Podcast</div>
+    <div class="chip" onclick="loadCategory('history', this)">觀看歷史</div>
 </div>
 
 <div class="video-grid" id="video-grid">
@@ -80,6 +90,19 @@
 </div>
 <div id="loading" style="text-align: center; padding: 30px; color: #666; display: none;">
     Loading more videos...
+</div>
+
+<!-- Overlay Player -->
+<div id="player-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; flex-direction: column;">
+    <div style="padding: 10px; background: rgba(0,0,0,0.5); display: flex; justify-content: space-between; align-items: center; position: absolute; top: 0; width: 100%; z-index: 1001;">
+        <button onclick="closePlayer()" style="background: none; border: none; color: #fff; font-size: 24px; cursor: pointer;">✕</button>
+        <span id="player-title" style="color: #fff; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%;">Loading...</span>
+    </div>
+    
+    <div id="player-container" style="flex: 1; display: flex; align-items: center; justify-content: center;">
+        <div id="player-loader" style="color: #fff;">正在解析影片...(約需15秒)</div>
+        <video id="main-video" controls autoplay playsinline style="width: 100%; max-height: 100%; display: none;"></video>
+    </div>
 </div>
 
 <script>
@@ -96,6 +119,22 @@
     let currentCategory = 'all';
     let isFinished = false;
 
+    // View History Helper
+    function getHistory() {
+        try {
+            return JSON.parse(localStorage.getItem('yt_lite_history') || '[]');
+        } catch { return []; }
+    }
+    
+    function saveHistory(video) {
+        let history = getHistory();
+        // Remove existing if present to move to top
+        history = history.filter(v => v.id !== video.id);
+        history.unshift(video);
+        if (history.length > 50) history.pop();
+        localStorage.setItem('yt_lite_history', JSON.stringify(history));
+    }
+
     async function loadVideos(reset=false) {
         if (isLoading || (isFinished && !reset)) return;
         isLoading = true;
@@ -108,19 +147,32 @@
         }
 
         try {
-            const response = await fetch(`/api/videos?pageToken=${nextPageToken}&category=${currentCategory}`);
-            if (response.status === 401) {
-                window.location.href = '/login';
-                return;
+            let data;
+            
+            // Special handling for history
+            if (currentCategory === 'history') {
+                if (reset) {
+                    const history = getHistory();
+                    data = { videos: history, nextPageToken: '' };
+                } else {
+                    data = { videos: [], nextPageToken: '' };
+                }
+            } else {
+                const response = await fetch(`/api/videos?pageToken=${nextPageToken}&category=${currentCategory}`);
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                data = await response.json();
             }
-            const data = await response.json();
             
             if (data.videos && data.videos.length > 0) {
                 const grid = document.getElementById('video-grid');
                 data.videos.forEach(video => {
                     const div = document.createElement('div');
                     div.className = 'video-card';
-                    div.onclick = function() { window.location.href = '/watch?v=' + video.id; };
+                    // Store video object in dataset or closure for history saving
+                    div.onclick = function() { openPlayer(video); };
                     div.innerHTML = `
                         <img src="${video.thumbnail}" loading="lazy">
                         <div class="info">
@@ -154,8 +206,53 @@
         loadVideos(true);
     }
 
+    // Overlay Player Functions
+    async function openPlayer(video) {
+        // Save to history
+        saveHistory(video);
+    
+        const overlay = document.getElementById('player-overlay');
+        const titleFn = document.getElementById('player-title');
+        const loader = document.getElementById('player-loader');
+        const videoEl = document.getElementById('main-video');
+        
+        overlay.style.display = 'flex';
+        titleFn.textContent = video.title;
+        loader.style.display = 'block';
+        videoEl.style.display = 'none';
+        videoEl.src = '';
+        
+        try {
+            const res = await fetch(`/api/get_stream?v=${video.id}`);
+            const data = await res.json();
+            
+            if (data.stream_url) {
+                loader.style.display = 'none';
+                videoEl.style.display = 'block';
+                videoEl.src = data.stream_url;
+                videoEl.play();
+            } else {
+                loader.textContent = "Error: " + (data.error || "Cannot fetch stream");
+            }
+        } catch (e) {
+            loader.textContent = "Network Error";
+        }
+    }
+    
+    function closePlayer() {
+        const overlay = document.getElementById('player-overlay');
+        const videoEl = document.getElementById('main-video');
+        videoEl.pause();
+        videoEl.src = '';
+        overlay.style.display = 'none';
+        
+        // Restore status bar color if needed (optional)
+    }
+
     // Infinite Scroll
     window.onscroll = function() {
+        if (currentCategory === 'history') return; // History is local, no infinite scroll
+        
         if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
             loadVideos();
         }
