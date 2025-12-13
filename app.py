@@ -78,6 +78,11 @@ def search_yt(query):
 def index():
     return render_template('index.html')
 
+@app.route('/install')
+def install():
+    from flask import send_file
+    return send_file('yt-lite.mobileconfig', as_attachment=True)
+
 @app.route('/search')
 def search():
     query = request.args.get('q', '')
@@ -102,4 +107,4 @@ def watch():
     return render_template('watch.html', stream_url=stream_url, info=info, mime_type=mime_type)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=80)
