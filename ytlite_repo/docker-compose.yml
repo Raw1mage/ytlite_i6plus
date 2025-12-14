@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # 1. Invidious Database
+  invidious-db:
+    image: postgres:14
+    container_name: ytlite-postgres
+    volumes:
+      - /opt/ytlite_v3/postgres_data:/var/lib/postgresql/data
+      # Invidious requires specific SQL init scripts from its repo
+      - ./refs/invidious/config/sql:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_DB: invidious
+      POSTGRES_USER: kemal
+      POSTGRES_PASSWORD: password
+    restart: unless-stopped
+    ports:
+      - "1216:5432" # Optional: expose for debugging
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U kemal -d invidious" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Invidious Engine (The Bone)
+  invidious:
+    image: quay.io/invidious/invidious:latest
+    container_name: ytlite-engine
+    restart: unless-stopped
+    ports:
+      - "1215:3000" # Changed from 3001 to 1215
+    volumes:
+      - ./BUILD/invidious/config.yml:/invidious/config/config.yml
+    environment:
+      # Connection to the DB service above
+      INVIDIOUS_DATABASE_URL: postgres://kemal:password@invidious-db:5432/invidious
+    depends_on:
+      invidious-db:
+        condition: service_healthy
+
+  # 3. YT Lite Middleware (The Brain & Skin)
+  middleware:
+    build:
+      context: .
+      dockerfile: BUILD/middleware/Dockerfile
+    container_name: ytlite-web
+    restart: unless-stopped
+    ports:
+      - "1214:8080" # Web interface
+    volumes:
+      - ./src/middleware:/app
+      - /opt/ytlite_v3/user_db:/app/data
+    environment:
+      INVIDIOUS_API_URL: http://invidious:3000 # Internal Docker network
+      PORT: 8080
+    depends_on:
+      - invidious

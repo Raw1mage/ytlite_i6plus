@@ -1,0 +1,922 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if logged_in %}
+<style>
+    .chips-container {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 10px 0;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+    }
+
+    .chip {
+        padding: 8px 16px;
+        background: #333;
+        border: 1px solid #444;
+        border-radius: 20px;
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .chip.active {
+        background: #fff;
+        color: #000;
+        font-weight: bold;
+    }
+
+    .video-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+    }
+
+    .video-card {
+        background: #1e1e1e;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .video-card img {
+        width: 100%;
+        aspect-ratio: 16/9;
+        object-fit: cover;
+        background: #000;
+    }
+
+    .video-card .info {
+        padding: 10px;
+    }
+
+    .video-card .title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 5px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.3;
+        height: 2.6em;
+        /* Fixed height for alignment */
+    }
+
+    .video-card .uploader {
+        font-size: 12px;
+        color: #aaa;
+    }
+
+    @media (max-width: 600px) {
+        .video-grid {
+            grid-template-columns: repeat(2, 1fr);
+            /* 2 cols on mobile for better visibility */
+            gap: 10px;
+        }
+    }
+</style>
+
+
+<div class="video-grid" id="video-grid">
+    <!-- Videos injected via JS -->
+</div>
+<div id="loading" style="text-align: center; padding: 30px; color: #666; display: none;">
+    Loading more videos...
+</div>
+
+<!-- Overlay Player -->
+<div id="player-overlay" class="overlay-container">
+
+    <!-- Video Section -->
+    <div id="player-video-container" class="video-section">
+        <div class="video-wrapper" onclick="if(isMinimized) toggleMiniPlayer(event)">
+            <!-- Minimize Button (Top-Left) -->
+            <button id="btn-minimize" onclick="toggleMiniPlayer(event)" ontouchstart="" class="float-btn">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                </svg>
+            </button>
+
+            <!-- PiP Close Button (Top-Right of floating window) -->
+            <button class="pip-close-btn" onclick="closePlayer(event)">×</button>
+
+            <div id="player-loader"
+                style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 14px; text-align: center; pointer-events: none;">
+                <div class="spinner"
+                    style="margin: 0 auto 10px; width: 30px; height: 30px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite;">
+                </div>
+                正在解析...
+            </div>
+
+            <video id="main-video" controls playsinline></video>
+            <iframe id="youtube-iframe" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;display:none;" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+        </div>
+
+        <!-- Mini Info (Shown when minimized) -->
+        <div class="mini-info" style="display: none;">
+            <div id="mini-title" style="font-size: 14px; font-weight: 600; padding: 10px; color: #fff;">Video Title
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Player Info (Hidden when minimized) -->
+    <div class="full-info">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <h2 id="player-title"
+                style="font-size: 18px; margin: 0 0 8px 0; font-weight: 600; line-height: 1.3; flex: 1;">Title</h2>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <div style="font-size: 14px; color: #aaa;" id="player-meta">Channel • Views</div>
+        </div>
+
+        <div class="desc-block">
+            <div class="desc-header">
+                <span>影片說明</span>
+                <button id="desc-toggle" onclick="toggleDesc()" class="desc-toggle">展開</button>
+            </div>
+            <div id="player-desc" class="desc-clamped">Description</div>
+        </div>
+
+        <h3 style="font-size: 16px; margin: 16px 0 10px;">接下來播放</h3>
+        <div id="related-videos" style="opacity: 0.5;">
+            <div style="padding: 20px; text-align: center; color: #555;">(相關影片功能開發中)</div>
+        </div>
+        <div style="height: 50px;"></div>
+    </div>
+</div>
+
+<style>
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Base Overlay */
+    .overlay-container {
+        display: none;
+        position: fixed;
+        top: 64px; /* fallback; JS recalculates */
+        left: 0;
+        width: 100%;
+        height: calc(100% - 64px);
+        background: #121212;
+        z-index: 900;
+        flex-direction: column;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 8px 10px 0;
+        box-sizing: border-box;
+    }
+
+    /* Video Section */
+    .video-section {
+        position: relative;
+        top: 0;
+        width: 100%;
+        background: #000;
+        z-index: 1002;
+        flex-shrink: 0;
+        transition: width 0.3s, height 0.3s;
+        min-height: auto;
+        margin: 6px 0 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .video-wrapper {
+        position: relative;
+        width: 100%;
+        height: min(60vh, 56.25vw);
+        border-radius: 6px;
+        overflow: hidden;
+        background: #000;
+    }
+
+    #main-video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none;
+    }
+
+    .float-btn {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.6);
+        border: none;
+        color: #fff;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1003;
+        cursor: pointer;
+    }
+
+    /* Full Info */
+    .full-info {
+        padding: 6px 10px 8px;
+        margin-top: 2px;
+        flex: 0 0 auto;
+        background: #121212;
+    }
+
+    .mini-info {
+        display: none;
+    }
+
+    /* Minimized State (PiP Style) */
+    .overlay-container.minimized {
+        top: auto;
+        bottom: 70px;
+        /* Above bottom nav/safe area */
+        right: 15px;
+        left: auto;
+        width: 200px;
+        height: 112px;
+        background: #000;
+        border: 1px solid #333;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
+        flex-direction: column;
+        overflow: visible;
+        border-radius: 8px;
+        padding: 0;
+    }
+
+    .overlay-container.minimized .video-section {
+        width: 100%;
+        height: 100%;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .overlay-container.minimized .video-wrapper {
+        padding-top: 0;
+        height: 100%;
+    }
+
+    .overlay-container.minimized #main-video {
+        display: block !important;
+    }
+
+    /* Hide Full UI elements when minimized */
+    .overlay-container.minimized .float-btn {
+        display: none;
+    }
+
+    .overlay-container.minimized #player-loader {
+        display: none;
+    }
+
+    .overlay-container.minimized .full-info {
+        display: none;
+    }
+
+    .overlay-container.minimized .mini-info {
+        display: none !important;
+    }
+
+    /* PiP Close Button */
+    .pip-close-btn {
+        display: none;
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 24px;
+        height: 24px;
+        background: #cc0000;
+        color: white;
+        border: 1px solid #fff;
+        border-radius: 50%;
+        font-size: 16px;
+        font-weight: bold;
+        line-height: 22px;
+        text-align: center;
+        z-index: 2005;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+
+    .overlay-container.minimized .pip-close-btn {
+        display: block;
+    }
+
+    .desc-block {
+        background: #1f1f1f;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #ddd;
+        line-height: 1.5;
+        margin-bottom: 12px;
+    }
+
+    .desc-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        color: #aaa;
+        font-size: 12px;
+    }
+
+    .desc-toggle {
+        background: #333;
+        color: #fff;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    #player-desc {
+        white-space: pre-wrap;
+        overflow: hidden;
+    }
+
+    #player-desc.desc-clamped {
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+    }
+
+    #player-desc.desc-expanded {
+        display: block;
+    }
+</style>
+
+<script>
+    // Safe input listener
+    const searchInput = document.querySelector("input[name=q]");
+    if (searchInput) {
+        searchInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && e.isComposing) { e.preventDefault(); }
+        });
+    }
+
+    // Explicit Channel Loader
+    function loadChannel(channelName, channelId = '') {
+        // Close sidebar first
+        closeDrawer();
+
+        // 優先使用 channelId 打開專屬頁面，否則用搜尋
+        if (channelId) {
+            window.location.href = `/channel?c=${encodeURIComponent(channelId)}&name=${encodeURIComponent(channelName)}`;
+        } else {
+            window.location.href = '/search?q=' + encodeURIComponent(channelName);
+        }
+    }
+    let nextPageToken = '';
+    let isLoading = false;
+    let currentCategory = 'all';
+    let isFinished = false;
+    let isMinimized = false;
+
+    // View History Helper
+    function getHistory() {
+        try {
+            return JSON.parse(localStorage.getItem('yt_lite_history') || '[]');
+        } catch { return []; }
+    }
+
+    function saveHistory(video) {
+        let history = getHistory();
+        // Remove existing if present to move to top
+        history = history.filter(v => v.id !== video.id);
+        history.unshift(video);
+        if (history.length > 50) history.pop();
+        localStorage.setItem('yt_lite_history', JSON.stringify(history));
+    }
+
+    async function loadVideos(reset = false) {
+        if (isLoading || (isFinished && !reset)) return;
+        isLoading = true;
+        document.getElementById('loading').style.display = 'block';
+
+        if (reset) {
+            document.getElementById('video-grid').innerHTML = '';
+            nextPageToken = '';
+            isFinished = false;
+        }
+
+        try {
+            let data;
+
+            // Special handling for history
+            if (currentCategory === 'history') {
+                if (reset) {
+                    const history = getHistory();
+                    data = { videos: history, nextPageToken: '' };
+                } else {
+                    data = { videos: [], nextPageToken: '' };
+                }
+            } else {
+                const response = await fetch(`/api/videos?pageToken=${nextPageToken}&category=${currentCategory}`);
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                data = await response.json();
+                console.log('[loadVideos] category:', currentCategory, 'items:', data?.videos?.length || 0, 'error:', data?.error);
+            }
+
+            if (data.videos && data.videos.length > 0) {
+                const grid = document.getElementById('video-grid');
+                data.videos.forEach(video => {
+                    const div = document.createElement('div');
+                    div.className = 'video-card';
+                    if (video.channel_id) div.setAttribute('data-channel', video.channel_id);
+                    // Store video object for related列表
+                    div.setAttribute('data-vid', video.id);
+                    div.onclick = function () { openPlayer(video); };
+                    div.innerHTML = `
+                        <img src="${video.thumbnail}" loading="lazy">
+                        <div class="info">
+                            <div class="title">${video.title}</div>
+                            <div class="uploader">${video.uploader}</div>
+                        </div>
+                    `;
+                    grid.appendChild(div);
+                });
+                nextPageToken = data.nextPageToken || '';
+                if (!nextPageToken) isFinished = true;
+            } else {
+                isFinished = true;
+            }
+        } catch (e) {
+            console.error("Load error:", e);
+        } finally {
+            isLoading = false;
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    async function loadCategory(cat, element, refresh = false) {
+        closeOverlayIfOpen();
+        // If cat starts with 'channel:', it's a special channel filter
+        if (cat.startsWith('channel:')) {
+            // Placeholder for channel specific logic
+        }
+
+        if (element) {
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            // If refresh, we might not want to change active class logic drastically
+            // But usually 'refresh' button is separate. 
+            // If the element clicked IS the refresh button, we don't make it active permanently.
+            if (!refresh) {
+                element.classList.add('active');
+            } else {
+                // If refreshing, maybe keep the 'current' category active
+                // For now, just reset to 'all' visual or keep previous?
+                // Let's Find the chip corresponding to currentCategory? 
+                // Too complex for now. Just highlight 'all' if refreshed from all.
+                const active = document.querySelector(`.chip[onclick*="'${currentCategory}'"]`);
+                if (active) active.classList.add('active');
+            }
+        }
+
+        if (!refresh && cat === currentCategory) return;
+
+        currentCategory = cat;
+        await loadVideos(true, refresh);
+    }
+
+    // Drawer Logic
+    function toggleDrawer() {
+        const drawer = document.getElementById('app-drawer');
+        const overlay = document.getElementById('drawer-overlay');
+        if (drawer.classList.contains('open')) {
+            closeDrawer();
+        } else {
+            drawer.classList.add('open');
+            overlay.classList.add('show');
+            // Load subs if empty
+            const subsList = document.getElementById('drawer-subs-list');
+            if (subsList && subsList.innerHTML.includes('Loading')) {
+                fetchSubscriptions();
+            }
+        }
+    }
+
+    function closeDrawer() {
+        document.getElementById('app-drawer').classList.remove('open');
+        document.getElementById('drawer-overlay').classList.remove('show');
+    }
+
+    function closeOverlayIfOpen() {
+        const overlay = document.getElementById('player-overlay');
+        if (overlay && overlay.style.display === 'flex') {
+            closePlayerLogic();
+        }
+    }
+
+    async function fetchSubscriptions() {
+        try {
+            const res = await fetch('/api/subscriptions');
+            if (res.status === 401) return; // Not logged in
+            const data = await res.json();
+
+            const list = document.getElementById('drawer-subs-list');
+            list.innerHTML = '';
+
+            if (data.subscriptions && data.subscriptions.length > 0) {
+                data.subscriptions.forEach(sub => {
+                    // Escape quotes just in case
+                    const safeTitle = sub.title.replace(/'/g, "\\'");
+                    const div = document.createElement('div');
+                    div.className = 'drawer-item';
+                    div.onclick = function () { loadChannel(safeTitle); };
+                    div.innerHTML = `
+                        <img src="${sub.thumbnail}" loading="lazy">
+                        <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sub.title}</div>
+                    `;
+                    list.appendChild(div);
+                });
+            } else {
+                list.innerHTML = '<div style="padding:15px;color:#777;">No subscriptions found.</div>';
+            }
+        } catch (e) {
+            console.error(e);
+            document.getElementById('drawer-subs-list').innerHTML = '<div style="padding:15px;color:red;">Failed to load.</div>';
+        }
+    }
+
+    async function toggleSubscription(channelId, btn) {
+        if (!channelId) return;
+        const action = btn.innerText === '訂閱' ? 'subscribe' : 'unsubscribe';
+
+        // Optimistic UI update
+        const originalText = btn.innerText;
+        btn.innerText = action === 'subscribe' ? '已訂閱' : '訂閱';
+        btn.style.background = action === 'subscribe' ? '#333' : '#cc0000';
+        btn.style.color = action === 'subscribe' ? '#aaa' : '#fff';
+
+        try {
+            const res = await fetch('/api/subscription_action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action, channelId: channelId })
+            });
+            const data = await res.json();
+            if (data.error) {
+                alert('Error: ' + data.error);
+                btn.innerText = originalText; // Revert
+                // Revert style
+                btn.style.background = originalText === '訂閱' ? '#cc0000' : '#333';
+                btn.style.color = originalText === '訂閱' ? '#fff' : '#aaa';
+            } else {
+                // Success, maybe reload sidebar if open?
+                fetchSubscriptions();
+            }
+        } catch (e) {
+            alert('Network error');
+            btn.innerText = originalText;
+        }
+    }
+
+    // Overlay Player Functions
+    async function openPlayer(video) {
+        // Get overlay first and force full screen mode
+        const overlay = document.getElementById('player-overlay');
+        overlay.classList.remove('minimized');
+        overlay.style.display = 'flex';
+        // Prevent background scroll while overlay is open
+        document.body.style.overflow = 'hidden';
+        // Force full screen with explicit styles
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.right = 'auto';
+        overlay.style.bottom = 'auto';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.borderRadius = '0';
+        isMinimized = false;
+
+        // Update URL
+        const newUrl = `/?v=${video.id}`;
+        history.pushState({ v: video.id }, '', newUrl);
+
+        // Keep header visible; adjust overlay below header
+        const header = document.querySelector('header');
+        const headerHeight = header ? header.offsetHeight : 0;
+        if (headerHeight) {
+            const offset = headerHeight + 8; // align with horizontal padding gap
+            overlay.style.top = `${offset}px`;
+            overlay.style.height = `calc(100% - ${offset}px)`;
+        } else {
+            overlay.style.top = '64px';
+            overlay.style.height = 'calc(100% - 64px)';
+        }
+
+        // Save to history
+        saveHistory(video);
+        // Reset UI
+        const titleFn = document.getElementById('player-title');
+        const miniTitleFn = document.getElementById('mini-title');
+        const metaFn = document.getElementById('player-meta');
+        const descFn = document.getElementById('player-desc');
+        const loader = document.getElementById('player-loader');
+        const videoEl = document.getElementById('main-video');
+
+        titleFn.textContent = video.title;
+        miniTitleFn.textContent = video.title;
+
+        // Channel Link & Subscribe Button
+        const safeUploader = video.uploader.replace(/'/g, "\\'");
+        // We need channelId for subscription. 
+        // Note: 'video.channelId' might not be available in all search snippets yet.
+        // We will try to get it from 'data.info' later, but for now button is hidden if no ID.
+
+        let subBtnHtml = '';
+        // If we have channelId in video object (from some sources)
+        // For now, initiate with placeholder, update after fetch
+
+        metaFn.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                <span onclick="loadChannel('${safeUploader}')" style="color: #3ea6ff; font-weight: bold; cursor: pointer;">${video.uploader}</span>
+                <button id="player-sub-btn" style="padding:6px 12px; font-size:12px; display:none;" onclick="toggleSubscription('', this)">訂閱</button>
+            </div>
+        `;
+
+        descFn.textContent = "Loading description...";
+        descFn.classList.add('desc-clamped');
+        descFn.classList.remove('desc-expanded');
+        const descToggle = document.getElementById('desc-toggle');
+        if (descToggle) descToggle.textContent = '展開';
+
+        loader.style.display = 'block';
+        videoEl.style.display = 'none';
+        videoEl.src = '';
+
+        // Use YouTube iframe embed - simpler and more reliable!
+        loader.style.display = 'none';
+        videoEl.style.display = 'none';
+
+        // Create or reuse iframe
+        let iframe = document.getElementById('youtube-iframe');
+        if (!iframe) {
+            // should not happen since iframe is in DOM, but keep safe
+            iframe = document.createElement('iframe');
+            iframe.id = 'youtube-iframe';
+            iframe.setAttribute('allowfullscreen', '');
+            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.style.backgroundColor = '#000';
+            videoEl.parentElement.appendChild(iframe);
+        }
+
+        iframe.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&rel=0`;
+        iframe.style.display = 'block';
+
+            // Try to fetch metadata for description (optional)
+            try {
+                const res = await fetch(`/api/get_stream?v=${video.id}`);
+                const data = await res.json();
+                console.log('[openPlayer] get_stream status:', res.status, 'has info:', !!data.info, 'error:', data.error);
+
+                if (data.info) {
+                    if (data.info.description) descFn.textContent = data.info.description;
+
+                const viewText = data.info.view_count ? ` • ${Math.floor(data.info.view_count / 10000)}萬觀看` : '';
+
+                // Update Meta with Sub button and correct channel ID
+                const channelId = data.info.channel_id;
+
+                // Fix Channel Link: Use a separate, clickable container
+                // Ensure quotes in uploader name don't break JS
+                const safeUploaderJs = video.uploader.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                metaFn.innerHTML = `
+                        <div style="display:flex; align-items:center;">
+                            <div style="flex:1;">
+                                <div onclick="loadChannel('${safeUploaderJs}','${channelId}')" 
+                                     style="color: #3ea6ff; font-weight: bold; font-size: 15px; padding: 5px 0; cursor: pointer; display: inline-block;">
+                                    ${video.uploader}
+                                </div>
+                                <span style="color:#aaa; font-size:12px;">${viewText}</span>
+                            </div>
+                            <button id="player-sub-btn" onclick="toggleSubscription('${channelId}', this)"
+                                style="padding:6px 12px; font-size:12px; background:#cc0000; color:white; margin-left:10px; border:none; border-radius:15px;">
+                                訂閱
+                            </button>
+                        </div>
+                    `;
+            }
+
+            // --- Implement Related Videos (From Cache/Current Grid) ---
+            const relatedContainer = document.getElementById('related-videos');
+            relatedContainer.style.opacity = '1';
+            relatedContainer.innerHTML = ''; // Clear placeholder
+
+            // Get current videos from grid (Simple Recommendation Strategy)
+            const gridVideos = document.querySelectorAll('.video-card');
+            let count = 0;
+
+            gridVideos.forEach(card => {
+                if (count >= 8) return; // Limit to 8 related
+                const title = card.querySelector('.title').innerText;
+                if (title === video.title) return; // Skip self
+
+                const clone = card.cloneNode(true);
+                clone.className = 'related-item';
+                clone.style.display = 'flex';
+                clone.style.marginBottom = '10px';
+                clone.style.gap = '10px';
+                clone.style.cursor = 'pointer';
+
+                const img = clone.querySelector('img');
+                img.style.width = '120px';
+                img.style.aspectRatio = '16/9';
+                img.style.height = 'auto';
+                img.style.borderRadius = '4px';
+
+                const info = clone.querySelector('.info');
+                info.style.padding = '0';
+                info.style.flex = '1';
+
+                const vid = card.getAttribute('data-vid');
+                if (vid) {
+                    const vidObj = {
+                        id: vid,
+                        title: title,
+                        uploader: card.querySelector('.uploader').innerText,
+                        thumbnail: img.src
+                    };
+                    clone.onclick = function () {
+                        openPlayer(vidObj);
+                        document.querySelector('.overlay-container').scrollTop = 0;
+                    };
+                    relatedContainer.appendChild(clone);
+                    count++;
+                }
+            });
+
+            if (count === 0) {
+                relatedContainer.innerHTML = '<div style="padding:15px;color:#555;text-align:center;">無相關影片建議</div>';
+            }
+        } catch (e) {
+            console.log('[Player] Could not fetch metadata, but video will still play');
+        }
+    }
+
+    async function checkSubscriptionStatus(channelId) {
+        // Helper to check sub status. 
+        // Since we didn't implement a dedicated check API, we can lazily use 'get_subscriptions' (cached logic preferred)
+        // or just leave it for v2.1. 
+        // User asked to mimic sub mechanism.
+        // Let's implement a quick check via existing subs list if loaded, 
+        // or assume 'Subscribe'.
+        // If we want perfection, we need an API: /api/check_sub?channelId=...
+        // IMPLEMENTATION: Iterate through drawer subs if loaded.
+        const subsList = document.getElementById('drawer-subs-list');
+        if (subsList && subsList.children.length > 1) { // loaded
+            // This is hacky DOM scraping. Better to store in JS variable.
+            // We'll skip for now to save complexity/latency.
+        }
+    }
+
+    function toggleMiniPlayer(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        const videoEl = document.getElementById('main-video');
+        if (!videoEl) return;
+
+        // Try Native PiP (iOS Safari / Modern Browsers)
+        if (videoEl.webkitSetPresentationMode) {
+            // Toggle between inline and PiP
+            const mode = videoEl.webkitPresentationMode === 'picture-in-picture' ? 'inline' : 'picture-in-picture';
+            videoEl.webkitSetPresentationMode(mode);
+        } else if (document.pictureInPictureElement) {
+            document.exitPictureInPicture();
+        } else if (videoEl.requestPictureInPicture) {
+            videoEl.requestPictureInPicture();
+        } else {
+            alert('此裝置不支援原生的子母畫面 (PiP) 功能。');
+        }
+    }
+
+    function closePlayer(e) {
+        if (e) e.stopPropagation();
+
+        // Push state back to root if we were in video URL
+        // Only if we aren't already going back?
+        // Simpler: Just go back history()?
+        if (location.search.includes('v=')) {
+            history.back();
+            // history.back() triggers popstate, which calls closePlayerLogic
+            return;
+        }
+
+        closePlayerLogic();
+    }
+
+    function closePlayerLogic() {
+        const overlay = document.getElementById('player-overlay');
+        const videoEl = document.getElementById('main-video');
+        videoEl.pause();
+        videoEl.src = '';
+        const iframe = document.getElementById('youtube-iframe');
+        if (iframe) {
+            iframe.src = '';
+            iframe.style.display = 'none';
+        }
+        overlay.style.display = 'none';
+        isMinimized = false;
+        overlay.classList.remove('minimized');
+        // Restore body scroll
+        document.body.style.overflow = '';
+
+    }
+
+    // History Handling
+    window.onpopstate = function (event) {
+        if (event.state && event.state.v) {
+            // Re-open player?
+            // We need video details... 
+            // Limitation: history.state usually has minimal data.
+            // For now, if we popstate TO a video, maybe just reload to be safe or ignore?
+            // If we popstate FROM a video (state is null/empty), close player.
+        } else {
+            // Back to home/root
+            closePlayerLogic();
+        }
+    };
+
+    // Initial Load Check
+    window.onload = function () {
+        // Close overlay when using search or brand click
+        const searchForm = document.querySelector('form.header-search');
+        if (searchForm) {
+            searchForm.addEventListener('submit', function () {
+                closeOverlayIfOpen();
+            });
+        }
+        const brand = document.querySelector('a.brand');
+        if (brand) {
+            brand.addEventListener('click', function () {
+                closeOverlayIfOpen();
+            });
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const vid = urlParams.get('v');
+        if (vid) {
+            // How to get video details (title etc) for openPlayer?
+            // We need to fetch metadata first.
+            // Creating a dummy video object solely for openPlayer
+            const dummyVideo = { id: vid, title: 'Loading...', uploader: 'Loading...', thumbnail: '' };
+            openPlayer(dummyVideo);
+        }
+
+        // Also initial load
+        loadVideos(true);
+    };
+
+    function toggleDesc() {
+        const desc = document.getElementById('player-desc');
+        const btn = document.getElementById('desc-toggle');
+        if (!desc || !btn) return;
+        const expanded = desc.classList.toggle('desc-expanded');
+        if (expanded) {
+            desc.classList.remove('desc-clamped');
+            btn.textContent = '收起';
+        } else {
+            desc.classList.add('desc-clamped');
+            btn.textContent = '展開';
+        }
+    }
+</script>
+
+{% else %}
+<!-- Not Logged In View -->
+<div style="text-align: center; margin-top: 50px;">
+    <h2 style="color: #aaa;">Search YouTube</h2>
+    <form action="/search" method="get" class="search-box">
+        <input type="search" name="q" placeholder="What do you want to watch?" required inputmode="search"
+            enterkeyhint="search">
+        <button type="submit">Go</button>
+    </form>
+    <div style="margin-top: 30px; font-size: 0.8em; color: #555;">Running on iPhone 6 Plus (iOS 12) - v2.1 (Pure PiP)
+    </div>
+</div>
+{% endif %}
+{% endblock %}
