@@ -1,164 +1,41 @@
-# YT Lite v3 Development Progress
+# YT Lite v3 進度摘要（繁體）
 
-## Project Overview
-Refactoring YT Lite into a Dockerized microservices architecture for PC hosting, enabling personalized YouTube experiences for legacy devices.
+## 本階段目標
+- 以 FastAPI + Invidious 服務舊款 iPhone 6 Plus，提供繁中介面與穩定播放。
+- 透過 iframe 播放避免直抓串流失敗，維持輕量前端。
 
-## Architecture
-- **Backend**: Invidious (scraping engine) + Python FastAPI (middleware)
-- **Frontend**: PWA (Progressive Web App) optimized for iPhone 6 Plus
-- **Database**: PostgreSQL
-- **Deployment**: Docker Compose on powerful PC
+## 已完成
+- 基礎環境：Docker Compose（三服務）、埠位 1214/1215/1216，`webctl.sh` 管理腳本
+- FastAPI 中介層、Jinja2 模板、ProxyHeadersMiddleware（支援 Nginx/HTTPS）
+- Google OAuth2 登入/登出、Session 保存
+- `/api/videos` 繁中搜尋代理（台灣熱門/新聞/直播/Podcast）與縮圖 URL 修正
+- UI：行動優先網格、分類 Chips、Drawer、搜尋框
+- 播放器：全螢幕/迷你、iframe 播放回退、無快取標頭
 
-## Completed Milestones
+## 現況
+- 影片清單與縮圖正常，分類可切換。
+- 搜尋頁已接 Invidious `/api/v1/search`，但回傳為空／頁面顯示未登入，需要後端/日誌排查。
+- iframe 播放穩定；若 metadata 失敗，標題/作者可能暫時顯示「Loading...」但不影響播放。
+- OAuth token 儲存於 `/app/data/token.json`（Docker 掛載）。
 
-### Phase 1: Infrastructure Setup ✅
-- [x] Docker Compose configuration with 3 services (Postgres, Invidious, Middleware)
-- [x] Port configuration (1214 for middleware, 3001 for Invidious)
-- [x] Volume mounts for persistent data
-- [x] `webctl.sh` management script
-- [x] Project structure reorganization (src/, BUILD/, refs/, docs/HISTORY/)
+## 待處理
+1) 訂閱/資料
+- [ ] `/api/subscriptions` 取回訂閱並呈現於 Drawer
+- [ ] 訂閱 Feed 聚合
+- [ ] LocalStorage 觀看歷史 + Drawer 分頁
 
-### Phase 2: Middleware Core ✅
-- [x] FastAPI application with Jinja2 templates
-- [x] Google OAuth2 flow implementation
-- [x] Session management with cookies
-- [x] Proxy headers middleware for HTTPS support
-- [x] API endpoints:
-  - `/` - Home page with login status
-  - `/login` - OAuth initiation
-  - `/oauth2callback` - OAuth callback handler
-  - `/logout` - Session cleanup
-  - `/api/videos` - Video feed proxy
-  - `/api/subscriptions` - User subscriptions sync
-  - `/api/get_stream` - Video stream URL resolver
+2) 搜尋
+- [ ] 搜尋結果為空／未登入狀態：檢查 Invidious 回應與 session，修正登入狀態傳遞
+- [ ] 搜尋結果頁模板完善並支援播放
+- [ ] 最近搜尋記錄
 
-### Phase 3: UI Refactoring & Playback ✅ (2025-12-14)
-- [x] Fixed header layout using `position: sticky` instead of `fixed`
-- [x] Eliminated content overlap issues
-- [x] Reorganized header structure
-- [x] implemented **Video Playback** using YouTube Iframe Embed
-- [x] Fixed player UI (Full screen mode, correct sizing)
-- [x] Added failure handling for stream fetching (fallback to iframe)
-- [x] Mobile-responsive player overlay
-- [x] No-cache headers to prevent browser caching issues
+3) 體驗/品質
+- [ ] Metadata 回退策略
+- [ ] 無限捲動
+- [ ] PWA/快取（Manifest、Service Worker）
+- [ ] 播放進度記錄/恢復
 
-## Current Status
-
-### Working Features ✅
-**UI/UX**
-- Clean, non-overlapping header layout
-- Category navigation chips in header
-- Search functionality (UI ready)
-- Login/Logout buttons with proper styling
-- Drawer navigation menu
-- Responsive design
-- **Fullscreen Video Player Overlay**
-
-**Authentication**
-- Google OAuth2 login flow
-- Session persistence
-- Token storage in `/app/data/token.json`
-
-**Video Feed** 🎉
-- Invidious API integration working
-- Traditional Chinese content (台灣熱門, 台灣新聞, etc.)
-- Video thumbnails displaying correctly
-- Category filtering (全部, 新聞, 直播, Podcast, 觀看歷史)
-- 3-column grid layout on desktop
-- 2-column grid on mobile
-
-**Playback** 🎬
-- Click-to-play using YouTube Iframe
-- Autoplay enabled
-- Related videos list (based on current grid)
-- Subscription button (UI only)
-
-**Infrastructure**
-- Docker services running
-- Port mapping (1214 → middleware, 1215 → Invidious, 1216 → PostgreSQL)
-- HTTPS support via Nginx reverse proxy
-
-### Known Issues
-
-✅ **RESOLVED: Video Playback**
-- ~~Videos stuck on "Parsing..."~~
-- **Solution**: Implemented YouTube Iframe Embed as primary playback mechanism.
-
-⚠️ **PARTIAL: Video Metadata**
-- In some cases, Invidious cannot fetch video details, so Channel Name might show "Loading...". 
-- **Workaround**: Video still plays fine via iframe.
-
-## Next Steps
-
-### Immediate (Critical Path)
-1. **Subscription Features**
-   - Test `/api/subscriptions` with real Google account
-   - Display subscription list in drawer
-   - Implement subscription feed
-
-2. **Search Functionality**
-   - Wire up the search bar to `/api/videos?q=...`
-   - Create search results view
-
-3. **Optimization**
-   - Fix metadata loading (try fallback APIs)
-   - Add watch history to localStorage
-
-### Future Enhancements
-- [ ] Playlist management
-- [ ] Comments section
-- [ ] Video quality selector
-- [ ] Offline mode (PWA)
-- [ ] Push notifications
-
-## Technical Decisions
-
-### Why Sticky Instead of Fixed Header?
-- **Before**: `position: fixed` with `body { padding-top: 60px }`
-  - Required manual calculation of header height
-  - Content overlap when header height changed
-  - Multiple z-index layers causing confusion
-
-- **After**: `position: sticky` with Flexbox
-  - Header naturally flows with content
-  - No overlap issues
-  - Simpler CSS, easier to maintain
-  - Header sticks to top only when scrolling
-
-### Why Port 3001 for Invidious?
-- Port 3000 was occupied by another Node.js service (Hexapod Simulator)
-- Changed Docker mapping from `3000:3000` to `3001:3000`
-- Internal container still uses 3000, external access via 3001
-
-### Why Separate Middleware?
-- Handles OAuth (Invidious doesn't support Google login)
-- Merges data from multiple sources (Invidious + Google API)
-- Provides unified API for frontend
-- Easier to add features without modifying Invidious
-
-## Environment
-
-### Development
-- **OS**: Linux
-- **Docker**: Docker Compose v2
-- **Python**: 3.10
-- **Node**: v16+ (for other services on same machine)
-
-### Production
-- **Domain**: `https://ytlite.sob.com.tw`
-- **Reverse Proxy**: Nginx
-- **SSL**: Enabled
-- **Data Volume**: `/opt/ytlite_v3/`
-
-## Lessons Learned
-
-1. **CSS Layering**: Avoid `position: fixed` unless absolutely necessary. `sticky` is often a better choice.
-2. **Port Conflicts**: Always check for port conflicts before deploying (`netstat -tulpn`).
-3. **Docker Caching**: Use `--rebuild` flag when code changes aren't reflected.
-4. **OAuth Redirects**: Must match exactly in Google Cloud Console, including protocol (http vs https).
-5. **Browser Caching**: Set `Cache-Control: no-cache` for development to avoid stale content.
-
-## References
-- [Invidious Documentation](https://docs.invidious.io/)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Google OAuth2 Guide](https://developers.google.com/identity/protocols/oauth2)
+## 風險
+- Invidious 偶有 403/500：播放已改用 iframe；可考慮備援實例或快取。
+- YouTube API 配額：訂閱同步需控頻率或改手動觸發。
+- 舊機效能：持續限制 JS 量與 DOM 複雜度。

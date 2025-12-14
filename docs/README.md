@@ -1,56 +1,21 @@
-# YT Lite (iPhone 6 Plus Edition)
+# 文件索引（繁體）
 
-## Project Overview
-A lightweight, self-hosted YouTube proxy designed specifically for legacy iOS devices (like the iPhone 6 Plus on iOS 12.5.7). 
-It runs **on-device** using Python Flask and yt-dlp, serving a stripped-down HTML interface to Mobile Safari.
+此目錄為 YT Lite v3 的主要文件入口。
 
-## Architecture
-- **Hardware:** iPhone 6 Plus (A8, 1GB RAM)
-- **OS:** iOS 12.5.7 (Jailbroken via checkra1n)
-- **Backend:** Python 3.9 (Flask)
-- **Core Engine:** `yt-dlp` (Extracts direct MP4 stream URLs)
-- **Frontend:** HTML5 + Jinja2 (No heavy JS frameworks)
-- **Playback:** Native iOS Safari `<video>` player (Hardware Accelerated)
+## 你會在這裡找到
+- **系統架構**：`../ARCHITECTURE.md`
+- **開發計畫**：`PLAN.md`
+- **進度摘要**：`PROGRESS.md`
+- **除錯紀錄（精簡版）**：`DEBUGLOG.md`
+- **歷史記錄**：`HISTORY/`（包含完整除錯與舊版進度）
+- **作業準則**：`../gemini.md`
 
-## Installation
-1.  **Dependencies:**
-    - Python 3
-    - `pip` (bootstrapped via `ensurepip`)
-    - `flask`, `yt-dlp`
-    - `git`
-2.  **Setup:**
-    ```bash
-    git clone <repo_url>
-    cd yt_lite
-    python3 app.py
-    ```
-3.  **Usage:**
-    Open Safari and navigate to `http://localhost` (Port 80).
-    Tap "Share" -> "Add to Home Screen" for a fullscreen app experience.
+## 快速背景
+- 目標：為 iPhone 6 Plus（iOS 12）提供輕量、無廣告、繁中優先的 YouTube 介面。
+- 架構：iOS Safari 客戶端 ←→ FastAPI 中介層（1214） ←→ Invidious（1215）+ Postgres（1216），可選 Nginx/HTTPS。
+- 播放策略：以 YouTube iframe 為主，減少直抓串流失敗。
 
-## Features (v2.1)
-- **Smart Background Caching:** Pre-fetches subscriptions and home feed for instant loading. Includes resource scheduling to pause during playback.
-- **Pure PiP Mode:** Native iOS Picture-in-Picture window without text or clutter.
-- **Login & Subscriptions:** Full OAuth2 integration to view personal subscription feeds.
-- **Related Videos:** Smart client-side recommendations based on current list.
-- **Optimization:** Direct mp4 extraction optimized for legacy iOS (720p limit, Timeout protection).
-
-## Known Issues & Troubleshooting
-### 1. Battery & Reboot Issues (Critical)
-The iPhone 6 Plus (A8 chip) may experience "Voltage Sag" under high load (running backend + playing video), causing the battery to report 1% or the device to reboot unexpectedly.
-**Solution:** 
-- Always keep the device plugged into a reliable power source (iPad 12W charger recommended).
-- Allow the device to cool down if it overheats.
-
-### 2. "Parsing..." Stuck Loop
-Occasionally, the "All" category or search results may get stuck on "Parsing...".
-**Solution:**
-- Click the **"↻ Refresh"** button in the category bar (v2.1+).
-- If persistent, verify internet connection or restart the Python server.
-
-### 3. SSH/Jailbreak Loss
-If the device reboots, the jailbreak state is lost.
-**Solution:**
-- Re-run the Jailbreak tool (unc0ver/checkra1n).
-- Re-enable OpenSSH.
-- Restart the YT Lite server: `python3 app.py`
+## 如何更新文件
+- 計畫/進度：更新 `PLAN.md`、`PROGRESS.md`，維持核對清單與日期。
+- 除錯：新增條目到 `DEBUGLOG.md`，詳細長文放 `HISTORY/DEBUG_LOG.md`。
+- 若有重大架構或流程變更，務必同步調整 `../README.md` 與 `../ARCHITECTURE.md`。

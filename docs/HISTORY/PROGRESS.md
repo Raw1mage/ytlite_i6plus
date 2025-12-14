@@ -1,37 +1,36 @@
-# Development Progress
+# 歷史進度（v1/v2 時期，繁體）
 
-## Phase 1: Environment Setup
-- [x] SSH Access configured (Key-based auth).
-- [x] Python 3 environment verified.
-- [x] `pip` installed via \`ensurepip\`.
-- [x] Dependencies installed: \`flask\`, \`yt-dlp\`.
-- [x] Git installed and repository initialized.
+## 階段 1：環境建立
+- [x] 設定 SSH（金鑰登入）
+- [x] 驗證 Python 3 環境
+- [x] 透過 `ensurepip` 安裝 `pip`
+- [x] 安裝依賴：`flask`、`yt-dlp`
+- [x] 安裝 Git 並初始化版本庫
 
-## Phase 2: Core Development
-- [x] Basic Flask app structure created.
-- [x] `yt-dlp` integration for video extraction.
-- [x] Search functionality implemented.
-- [x] Video playback interface (Safari native).
-- [x] **Optimization:** Improve search speed (Combined yt-dlp calls, used os.popen).
-- [x] **Feature:** Add "Load More" for search results.
-- [x] **Feature:** Video quality selection (Fixed to best[ext=mp4] for Safari compatibility).
-- [x] **UI:** Brand update to "Youtube Lite" & Dark Mode.
-- [x] **Feature:** Header Search Bar with Magnifying Glass button.
-- [x] **Feature:** Categories (Chips) - News, Live, Podcast.
-- [x] **Feature:** Local Watch History.
-- [x] **Feature:** Overlay Player (SPA-like experience).
+## 階段 2：核心開發
+- [x] 建立 Flask 基礎骨架
+- [x] 整合 `yt-dlp` 取得影片連結
+- [x] 搜尋功能與 Safari 播放介面
+- [x] 搜尋效能最佳化（合併 `yt-dlp` 呼叫、`os.popen`）
+- [x] 「Load More」 搜尋結果分頁
+- [x] 影片畫質選擇（針對 Safari 固定為最佳 mp4）
+- [x] UI：品牌調整為 “Youtube Lite”、深色模式
+- [x] Header 搜尋列與放大鏡按鈕
+- [x] 分類 Chips：新聞、直播、Podcast
+- [x] 本地觀看歷史
+- [x] Overlay Player（類 SPA 體驗）
 
-## Phase 4: v2.1 Refinements (Pure PiP & Optimization)
-- [x] **Feature:** Native Picture-in-Picture (PiP) Mode (Video Only, No Text).
-- [x] **Feature:** Login & Subscriptions System (OAuth2).
-- [x] **Feature:** Background Caching for Home Feed & Subscriptions.
-- [x] **Feature:** Smart Resource Scheduling (Pause background tasks when user active).
-- [x] **Feature:** Related Videos (Client-side recommendation).
-- [x] **Feature:** Refresh Button for Home Feed.
-- [x] **UX:** Direct Channel Navigation & Clickable Channel Links.
-- [x] **UX:** Simplified Search Results Page.
+## 階段 4：v2.1 優化（PiP 與體驗）
+- [x] 原生 PiP（僅影片）
+- [x] OAuth2 登入與訂閱
+- [x] 背景快取首頁/訂閱
+- [x] 智慧排程（使用者操作時暫停背景任務）
+- [x] 相關影片（前端模擬推薦）
+- [x] 首頁重整按鈕
+- [x] 直達頻道導航與可點擊頻道連結
+- [x] 精簡搜尋結果頁
 
-## Known Issues (Blocking / Bugs)
-- [!] **Device Instability:** iPhone 6 Plus (A8) experiences voltage sag (battery drop from 60% to 1%) and reboots under high load (Python backend + Video decoding), causing Jailbreak/SSH loss.
-- [!] **Parsing Hangs:** "All" category sometimes gets stuck on "Parsing..." indefinitely. (Attempted fix: Promise.race timeout & Refresh button. Status: Verification blocked by device reboot).
-- [ ] **Deployment Pending:** Latest code (Refresh logic) is committed but not deployed to device due to connection loss.
+## 已知問題（歷史）
+- [!] 裝置不穩：iPhone 6 Plus 高負載時電壓掉落導致重啟，造成越獄/SSH 中斷。
+- [!] 「Parsing...」 停滯：All 分類偶爾卡住（已加 timeout + 重整按鈕，未驗證）。
+- [ ] 尚未部署：最新重整邏輯因連線中斷未佈署到裝置。
