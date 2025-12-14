@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
-<form action="/search" method="get" class="search-box">
-    <input type="search" name="q" value="{{ query }}" required>
-    <button type="submit">Go</button>
-</form>
+<div style="padding: 15px; font-size: 16px; color: #eee; border-bottom: 1px solid #333; margin-bottom: 10px;">
+    #<strong>{{ query }}</strong>
+</div>
 <div class="results">
     {% for video in results %}
     <a href="/watch?v={{ video.id }}">

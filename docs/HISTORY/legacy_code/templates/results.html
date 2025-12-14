@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding: 15px; font-size: 16px; color: #eee; border-bottom: 1px solid #333; margin-bottom: 10px;">
+    #<strong>{{ query }}</strong>
+</div>
+<div class="results">
+    {% for video in results %}
+    <a href="/watch?v={{ video.id }}">
+        <div class="video-item">
+            <img class="video-thumb" src="https://i.ytimg.com/vi/{{ video.id }}/mqdefault.jpg" loading="lazy">
+            <div class="video-info">
+                <div class="video-title">{{ video.title }}</div>
+                <div class="video-meta">{{ video.duration_string }} • {{ video.uploader }}</div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

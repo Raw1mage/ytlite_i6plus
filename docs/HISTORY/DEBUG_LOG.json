@@ -1,0 +1,27 @@
+[
+  {
+    "timestamp": "2025-12-14T19:34:00+0800",
+    "event": "CRITICAL_FAILURE",
+    "details": "Device rebooted unexpectedly while streaming video.",
+    "root_cause_analysis": {
+      "hardware": "iPhone 6 Plus (A8 Chip, 1GB RAM) running iOS 12.5.7",
+      "symptom": "Battery level dropped from ~60% to 1% instantly, followed by shutdown.",
+      "diagnosis": "Voltage Sag (Battery Aging/Protection). High concurrent load (Python Backend + Video Decoding) caused voltage dip below threshold."
+    },
+    "impact": "Jailbreak lost. SSH access lost. Server stopped.",
+    "action_items": [
+      "Wait for battery charge.",
+      "Re-Jailbreak device.",
+      "Re-deploy pending code changes (Refresh API)."
+    ]
+  },
+  {
+    "timestamp": "2025-12-14T19:32:00+0800",
+    "event": "BUG_REPORT",
+    "bug_id": "PARSING_STUCK",
+    "description": "Video list in 'All' category remains stuck on 'Parsing...' spinner.",
+    "hypothesis": "Background caching thread might be holding a stale or partial state, or network timeout without error handling.",
+    "fix_implemented": "Added client-side timeout (Promise.race) and 'Refresh' button to force clear cache.",
+    "status": "Fix implemented in codebase but DEPLOYMENT PENDING due to device crash."
+  }
+]

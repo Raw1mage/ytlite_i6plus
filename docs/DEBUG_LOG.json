@@ -1,0 +1,183 @@
+{
+    "session_id": "2025-12-14_v3_refactor",
+    "timestamp": "2025-12-14T21:23:00+08:00",
+    "phase": "UI Refactoring",
+    "status": "RESOLVED",
+    "issues": [
+        {
+            "id": "UI-001",
+            "severity": "high",
+            "title": "Header Content Overlap",
+            "description": "Category chips (全部, 新聞, etc.) were hidden behind fixed header",
+            "root_cause": "position: fixed header with insufficient body padding-top (60px)",
+            "symptoms": [
+                "Blank page below header",
+                "Category buttons only half visible",
+                "Content appearing under header on scroll"
+            ],
+            "resolution": {
+                "approach": "Changed from position:fixed to position:sticky with Flexbox layout",
+                "changes": [
+                    "base.html: Changed header from fixed to sticky",
+                    "base.html: Removed body padding-top",
+                    "base.html: Added flex layout to body",
+                    "base.html: Reduced header padding from 10px to 8px",
+                    "index.html: Added margin-top to chips-container"
+                ],
+                "files_modified": [
+                    "src/middleware/templates/base.html",
+                    "src/middleware/templates/index.html"
+                ]
+            },
+            "status": "RESOLVED",
+            "resolved_at": "2025-12-14T21:15:00+08:00"
+        },
+        {
+            "id": "UI-002",
+            "severity": "medium",
+            "title": "Header Layout Not Following Conventions",
+            "description": "Search box and login should be on the right, but category chips were in wrong position",
+            "root_cause": "Category chips were in page content instead of header",
+            "resolution": {
+                "approach": "Moved chips-container into header, reorganized flex layout",
+                "changes": [
+                    "base.html: Moved chips from index.html into header",
+                    "base.html: Reorganized header flex structure",
+                    "index.html: Removed duplicate chips-container"
+                ],
+                "new_layout": "[Logo] [Chips] ─── [Search] [Login]"
+            },
+            "status": "RESOLVED",
+            "resolved_at": "2025-12-14T21:20:00+08:00"
+        },
+        {
+            "id": "INFRA-001",
+            "severity": "critical",
+            "title": "Invidious API Returning 500 Errors",
+            "description": "All Invidious API endpoints (/api/v1/trending, /api/v1/search) return 500 Internal Server Error",
+            "root_cause": "Unknown - possibly initialization, YouTube anti-scraping, or configuration issue",
+            "symptoms": [
+                "Empty video feed",
+                "Logs show: '500 GET /api/v1/trending?region=TW'",
+                "Warning: 'Invidious companion is required'"
+            ],
+            "investigation": {
+                "steps_taken": [
+                    "Checked Invidious logs - no explicit errors",
+                    "Verified database connection - OK",
+                    "Tested /api/v1/stats endpoint - returns HTML instead of JSON",
+                    "Attempted public Invidious instances - API disabled",
+                    "Changed port from 3000 to 3001 due to conflict"
+                ],
+                "findings": [
+                    "Invidious web UI works (returns 200 OK)",
+                    "API endpoints return 'Not Found' or 500",
+                    "Port 3000 was occupied by Hexapod Simulator",
+                    "Database connection successful",
+                    "No explicit error messages in logs"
+                ]
+            },
+            "status": "OPEN",
+            "priority": "P0",
+            "next_actions": [
+                "Try different Invidious Docker image version",
+                "Check if database schema is initialized",
+                "Review Invidious configuration for API enablement",
+                "Consider using mock data temporarily for UI development"
+            ]
+        },
+        {
+            "id": "INFRA-002",
+            "severity": "medium",
+            "title": "Port 3000 Conflict",
+            "description": "Invidious couldn't bind to port 3000 - already in use by Node.js service",
+            "root_cause": "Hexapod Simulator running on port 3000",
+            "resolution": {
+                "approach": "Changed Invidious external port to 3001",
+                "changes": [
+                    "docker-compose.yml: Changed ports from '3000:3000' to '3001:3000'"
+                ]
+            },
+            "status": "RESOLVED",
+            "resolved_at": "2025-12-14T21:10:00+08:00"
+        },
+        {
+            "id": "AUTH-001",
+            "severity": "medium",
+            "title": "OAuth Scope Mismatch Warning",
+            "description": "Google returns more scopes than requested, causing oauthlib to throw Warning",
+            "root_cause": "oauthlib strict scope validation",
+            "resolution": {
+                "approach": "Set OAUTHLIB_RELAX_TOKEN_SCOPE=1 environment variable",
+                "changes": [
+                    "src/middleware/main.py: Added os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'"
+                ]
+            },
+            "status": "RESOLVED",
+            "resolved_at": "2025-12-14T20:58:00+08:00"
+        },
+        {
+            "id": "DEP-001",
+            "severity": "high",
+            "title": "Missing Python Dependency: itsdangerous",
+            "description": "SessionMiddleware requires itsdangerous but it wasn't in requirements.txt",
+            "root_cause": "Incomplete dependency specification",
+            "symptoms": [
+                "ModuleNotFoundError: No module named 'itsdangerous'",
+                "Middleware container crash loop"
+            ],
+            "resolution": {
+                "approach": "Added itsdangerous to requirements.txt",
+                "changes": [
+                    "requirements.txt: Added 'itsdangerous'"
+                ]
+            },
+            "status": "RESOLVED",
+            "resolved_at": "2025-12-14T20:52:00+08:00"
+        },
+        {
+            "id": "DEP-002",
+            "severity": "low",
+            "title": "Missing Response Import",
+            "description": "Used Response type in function signature without importing it",
+            "root_cause": "Incomplete import statement",
+            "resolution": {
+                "approach": "Added Response to fastapi.responses imports",
+                "changes": [
+                    "src/middleware/main.py: from fastapi.responses import HTMLResponse, RedirectResponse, Response"
+                ]
+            },
+            "status": "RESOLVED",
+            "resolved_at": "2025-12-14T21:05:00+08:00"
+        }
+    ],
+    "metrics": {
+        "total_issues": 7,
+        "resolved": 6,
+        "open": 1,
+        "critical": 1,
+        "high": 2,
+        "medium": 3,
+        "low": 1
+    },
+    "deployment_status": {
+        "services": {
+            "postgres": "healthy",
+            "invidious": "running (API not functional)",
+            "middleware": "healthy"
+        },
+        "endpoints": {
+            "http://localhost:1214": "accessible",
+            "https://ytlite.sob.com.tw": "accessible via Nginx",
+            "http://localhost:3001": "accessible (Invidious web UI)"
+        }
+    },
+    "notes": [
+        "UI is now fully functional and follows standard layout conventions",
+        "OAuth flow is complete and working",
+        "Main blocker is Invidious API not returning data",
+        "Consider implementing mock data endpoint for continued UI development",
+        "All Docker services are running, networking is correct",
+        "HTTPS reverse proxy working correctly"
+    ]
+}
