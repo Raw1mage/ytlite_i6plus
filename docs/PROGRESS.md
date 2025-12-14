@@ -32,17 +32,15 @@ Refactoring YT Lite into a Dockerized microservices architecture for PC hosting,
   - `/api/subscriptions` - User subscriptions sync
   - `/api/get_stream` - Video stream URL resolver
 
-### Phase 3: UI Refactoring ✅ (2025-12-14)
+### Phase 3: UI Refactoring & Playback ✅ (2025-12-14)
 - [x] Fixed header layout using `position: sticky` instead of `fixed`
 - [x] Eliminated content overlap issues
-- [x] Reorganized header structure:
-  - Left: Hamburger menu + Logo
-  - Center: Category chips (全部, 新聞, 直播, etc.)
-  - Right: Search box + Login/Logout
-- [x] Reduced header padding for compact design (8px vertical)
-- [x] Flexbox-based layout for natural element flow
+- [x] Reorganized header structure
+- [x] implemented **Video Playback** using YouTube Iframe Embed
+- [x] Fixed player UI (Full screen mode, correct sizing)
+- [x] Added failure handling for stream fetching (fallback to iframe)
+- [x] Mobile-responsive player overlay
 - [x] No-cache headers to prevent browser caching issues
-- [x] Mobile-responsive design maintained
 
 ## Current Status
 
@@ -54,7 +52,7 @@ Refactoring YT Lite into a Dockerized microservices architecture for PC hosting,
 - Login/Logout buttons with proper styling
 - Drawer navigation menu
 - Responsive design
-- Proper element ordering (header → drawer → content)
+- **Fullscreen Video Player Overlay**
 
 **Authentication**
 - Google OAuth2 login flow
@@ -69,47 +67,44 @@ Refactoring YT Lite into a Dockerized microservices architecture for PC hosting,
 - 3-column grid layout on desktop
 - 2-column grid on mobile
 
+**Playback** 🎬
+- Click-to-play using YouTube Iframe
+- Autoplay enabled
+- Related videos list (based on current grid)
+- Subscription button (UI only)
+
 **Infrastructure**
 - Docker services running
 - Port mapping (1214 → middleware, 1215 → Invidious, 1216 → PostgreSQL)
-- HTTPS support via Nginx reverse proxy (`https://ytlite.sob.com.tw`)
+- HTTPS support via Nginx reverse proxy
 
 ### Known Issues
 
-✅ **RESOLVED: Invidious API**
-- ~~Local Invidious instance returns 500 errors on `/api/v1/trending`~~
-- **Solution**: Changed to use `/api/v1/search` with Traditional Chinese keywords
-- Search endpoints work reliably
+✅ **RESOLVED: Video Playback**
+- ~~Videos stuck on "Parsing..."~~
+- **Solution**: Implemented YouTube Iframe Embed as primary playback mechanism.
 
-✅ **RESOLVED: Thumbnail Display**
-- ~~Thumbnails not loading (broken image icons)~~
-- **Solution**: Fixed internal Docker network URLs (`http://invidious:3000`) to external URLs (`http://localhost:1215`)
-
-✅ **RESOLVED: Content Language**
-- ~~All content was in English~~
-- **Solution**: Changed search queries to Traditional Chinese keywords (台灣熱門, 台灣新聞, etc.)
+⚠️ **PARTIAL: Video Metadata**
+- In some cases, Invidious cannot fetch video details, so Channel Name might show "Loading...". 
+- **Workaround**: Video still plays fine via iframe.
 
 ## Next Steps
 
 ### Immediate (Critical Path)
-1. **Fix Invidious API**
-   - Option A: Debug local Invidious configuration
-   - Option B: Use mock data for UI testing
-   - Option C: Try different Invidious Docker image version
-
-2. **Complete Video Playback**
-   - Test `/api/get_stream` endpoint
-   - Implement video player overlay
-   - Add related videos sidebar
-
-3. **Subscription Features**
+1. **Subscription Features**
    - Test `/api/subscriptions` with real Google account
    - Display subscription list in drawer
    - Implement subscription feed
 
+2. **Search Functionality**
+   - Wire up the search bar to `/api/videos?q=...`
+   - Create search results view
+
+3. **Optimization**
+   - Fix metadata loading (try fallback APIs)
+   - Add watch history to localStorage
+
 ### Future Enhancements
-- [ ] Search functionality
-- [ ] Watch history (localStorage)
 - [ ] Playlist management
 - [ ] Comments section
 - [ ] Video quality selector

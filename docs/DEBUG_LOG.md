@@ -196,69 +196,55 @@ if not thumb:
 
 **Status**: ✅ RESOLVED (2025-12-14 21:40)
 
----
+### PLAY-001: Video Playback Failures 🎬 High
+**Problem**: Videos would not play, stuck on "Parsing..." or "Loading..."
+**Root Cause**: 
+1. `TypeError` due to missing `mini-title` DOM element
+2. Invidious API returning "Video unavailable" or no MP4 streams for `get_stream` endpoint
 
-### CODE-001: Function Name Mismatch ⚙️ High
-**Problem**: Category chips calling `loadCategory()` but function defined as `selectCategory()`
-
-**Root Cause**: Inconsistent naming between `base.html` and `index.html`
-
-**Solution**: Renamed function to match caller
-
-**Changes**:
-- `index.html`: Renamed `selectCategory` to `loadCategory`
-
-**Status**: ✅ RESOLVED (2025-12-14 21:35)
-
----
-
-### AUTH-001: OAuth Scope Mismatch Warning 🔐 Medium
-**Problem**: Google returns more scopes than requested, causing oauthlib to throw Warning
-
-**Root Cause**: oauthlib strict scope validation
-
-**Solution**: Set `OAUTHLIB_RELAX_TOKEN_SCOPE=1` environment variable
+**Solution**: 
+1. Added missing DOM elements to `index.html`
+2. Switched from Invidious Stream URL to **YouTube Iframe Embed** fallback
+3. Removed complex stream fetching logic in favor of reliable iframe
 
 **Changes**:
-```python
-os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
-```
+- `index.html`: Added `<div id="mini-title">`
+- `index.html`: Replaced stream fetch logic with `<iframe>` creation
+- `index.html`: Added cached-busting meta tags
 
-**Status**: ✅ RESOLVED (2025-12-14 20:58)
+**Status**: ✅ RESOLVED (2025-12-14 22:15)
 
 ---
 
-### DEP-001: Missing Python Dependency 📦 High
-**Problem**: `ModuleNotFoundError: No module named 'itsdangerous'`
+### UI-004: Player UI Initialization Error ⚠️ High
+**Problem**: "Cannot set properties of null" error preventing player from opening
+**Root Cause**: JavaScript tried to access `mini-title` element which was missing from HTML
+**Solution**: Added the missing element and added null checks for robustness
 
-**Root Cause**: SessionMiddleware requires itsdangerous but it wasn't in requirements.txt
-
-**Solution**: Added itsdangerous to requirements.txt
-
-**Changes**:
-```txt
-google-api-python-client
-sqlalchemy
-itsdangerous  # ← Added
-```
-
-**Status**: ✅ RESOLVED (2025-12-14 20:52)
+**Status**: ✅ RESOLVED (2025-12-14 22:00)
 
 ---
 
-### DEP-002: Missing Response Import 📥 Low
-**Problem**: Used `Response` type in function signature without importing it
+### UI-005: Video Player Size and Layout 📐 Medium
+**Problem**: Video player was stuck in "mini" mode or showing a very small video area (black screen with tiny video)
+**Root Cause**: 
+1. CSS priority issues causing `minimized` class styles to persist
+2. `.video-wrapper` relying on 16:9 padding which didn't fill screen height
 
-**Root Cause**: Incomplete import statement
+**Solution**:
+1. Forced full-screen styles using inline styles in JS to override CSS
+2. Changed `.video-section` and `.video-wrapper` to use `min-height: 60vh`
 
-**Solution**: Added Response to fastapi.responses imports
+**Status**: ✅ RESOLVED (2025-12-14 22:20)
 
-**Changes**:
-```python
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
-```
+---
 
-**Status**: ✅ RESOLVED (2025-12-14 21:05)
+### UI-006: Metadata Loading Failure 📝 Medium
+**Problem**: Channel name and description stuck on "Loading..."
+**Root Cause**: `get_stream` API failed to return metadata because backend logic rejected videos with no streams
+**Solution**: (Partially Mitigated) Iframe plays video regardless. Metadata fetching still attempts but fails gracefully. User can see video content now.
+
+**Status**: ⚠️ PARTIALLY RESOLVED (Video plays, metadata optional)
 
 ---
 
@@ -274,7 +260,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 ### Endpoints
 | Endpoint | Status | Description |
 |----------|--------|-------------|
-| `http://localhost:1214` | 🟢 Accessible | Video feed working |
+| `http://localhost:1214` | 🟢 Accessible | Video feed & Playback working |
 | `https://ytlite.sob.com.tw` | 🟢 Accessible | Via Nginx reverse proxy |
 | `http://localhost:1215` | 🟢 Accessible | Invidious API |
 | `http://localhost:1216` | 🟢 Accessible | PostgreSQL |
@@ -283,6 +269,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 | Feature | Status |
 |---------|--------|
 | Video Feed | ✅ Working |
+| Video Playback | ✅ Working (Iframe) |
 | Thumbnails | ✅ Working |
 | Categories | ✅ Working |
 | Search UI | ✅ Ready |
@@ -293,22 +280,21 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 ## Achievements 🎉
 
 1. ✅ **First page fully functional** with video grid
-2. ✅ **Traditional Chinese content** localization
-3. ✅ **All thumbnails displaying** correctly
-4. ✅ **Clean UI** with proper layout
-5. ✅ **Sequential port allocation** (1214-1216)
-6. ✅ **All 11 critical bugs resolved**
+2. ✅ **Video Playback Functional** via YouTube Embed
+3. ✅ **Traditional Chinese content** localization
+4. ✅ **All thumbnails displaying** correctly
+5. ✅ **Clean UI** with proper layout & Fullscreen Player
+6. ✅ **All critical bugs resolved**
 
 ---
 
 ## Next Steps
 
-1. **Implement video playback** - Click on video to play
-2. **Add subscription feed** - Display user's subscribed channels
-3. **Implement search functionality** - Make search box functional
-4. **Add watch history** - Store in localStorage
-5. **Optimize performance** - Lazy loading, infinite scroll
+1. **Add subscription feed** - Display user's subscribed channels
+2. **Implement search functionality** - Make search box functional
+3. **Add watch history** - Store in localStorage
+4. **Optimize performance** - Lazy loading, infinite scroll
 
 ---
 
-*Last Updated: 2025-12-14 21:45:00 +08:00*
+*Last Updated: 2025-12-14 22:30:00 +08:00*

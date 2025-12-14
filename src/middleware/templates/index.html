@@ -116,6 +116,12 @@
 
             <video id="main-video" controls playsinline></video>
         </div>
+
+        <!-- Mini Info (Shown when minimized) -->
+        <div class="mini-info" style="display: none;">
+            <div id="mini-title" style="font-size: 14px; font-weight: 600; padding: 10px; color: #fff;">Video Title
+            </div>
+        </div>
     </div>
 
     <!-- Full Player Info (Hidden when minimized) -->
@@ -179,13 +185,16 @@
         z-index: 1002;
         flex-shrink: 0;
         transition: width 0.3s, height 0.3s;
+        min-height: 60vh;
+        /* Ensure minimum height for video area */
     }
 
     .video-wrapper {
         position: relative;
         width: 100%;
-        padding-top: 56.25%;
-        /* 16:9 */
+        height: 60vh;
+        /* Use viewport height for better full-screen display */
+        max-height: 600px;
     }
 
     #main-video {
@@ -516,6 +525,21 @@
 
     // Overlay Player Functions
     async function openPlayer(video) {
+        // Get overlay first and force full screen mode
+        const overlay = document.getElementById('player-overlay');
+        overlay.classList.remove('minimized');
+        overlay.style.display = 'flex';
+        // Force full screen with explicit styles
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.right = 'auto';
+        overlay.style.bottom = 'auto';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.borderRadius = '0';
+        isMinimized = false;
+
         // Update URL
         const newUrl = `/?v=${video.id}`;
         history.pushState({ v: video.id }, '', newUrl);
@@ -524,14 +548,9 @@
         const headerAuth = document.getElementById('header-auth');
         if (headerAuth) headerAuth.style.visibility = 'hidden';
 
-        // Reset Minimized State
-        isMinimized = false;
-        const overlay = document.getElementById('player-overlay');
-        overlay.classList.remove('minimized');
-
         // Save to history
         saveHistory(video);
-
+        // Reset UI
         const titleFn = document.getElementById('player-title');
         const miniTitleFn = document.getElementById('mini-title');
         const metaFn = document.getElementById('player-meta');
@@ -539,8 +558,6 @@
         const loader = document.getElementById('player-loader');
         const videoEl = document.getElementById('main-video');
 
-        overlay.style.display = 'flex';
-        // Reset UI
         titleFn.textContent = video.title;
         miniTitleFn.textContent = video.title;
 
@@ -567,35 +584,45 @@
         videoEl.style.display = 'none';
         videoEl.src = '';
 
-        try {
-            // Use Promise.race for timeout (Maximum compatibility)
-            const fetchPromise = fetch(`/api/get_stream?v=${video.id}`);
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Timeout')), 20000)
-            );
+        // Use YouTube iframe embed - simpler and more reliable!
+        loader.style.display = 'none';
+        videoEl.style.display = 'none';
 
-            const res = await Promise.race([fetchPromise, timeoutPromise]);
+        // Create or reuse iframe
+        let iframe = document.getElementById('youtube-iframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'youtube-iframe';
+            iframe.setAttribute('allowfullscreen', '');
+            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.style.backgroundColor = '#000';
+            videoEl.parentElement.appendChild(iframe);
+        }
+
+        iframe.src = `https://www.youtube.com/embed/${video.id}?autoplay=1&rel=0`;
+        iframe.style.display = 'block';
+
+        // Try to fetch metadata for description (optional)
+        try {
+            const res = await fetch(`/api/get_stream?v=${video.id}`);
             const data = await res.json();
 
-            if (data.stream_url) {
-                loader.style.display = 'none';
-                videoEl.style.display = 'block';
-                videoEl.src = data.stream_url;
-                videoEl.play();
+            if (data.info) {
+                if (data.info.description) descFn.textContent = data.info.description;
 
-                if (data.info) {
-                    if (data.info.description) descFn.textContent = data.info.description;
+                const viewText = data.info.view_count ? ` • ${Math.floor(data.info.view_count / 10000)}萬觀看` : '';
 
-                    const viewText = data.info.view_count ? ` • ${Math.floor(data.info.view_count / 10000)}萬觀看` : '';
+                // Update Meta with Sub button and correct channel ID
+                const channelId = data.info.channel_id;
 
-                    // Update Meta with Sub button and correct channel ID
-                    const channelId = data.info.channel_id;
+                // Fix Channel Link: Use a separate, clickable container
+                // Ensure quotes in uploader name don't break JS
+                const safeUploaderJs = video.uploader.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-                    // Fix Channel Link: Use a separate, clickable container
-                    // Ensure quotes in uploader name don't break JS
-                    const safeUploaderJs = video.uploader.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-
-                    metaFn.innerHTML = `
+                metaFn.innerHTML = `
                         <div style="display:flex; align-items:center;">
                             <div style="flex:1;">
                                 <div onclick="loadChannel('${safeUploaderJs}')" 
@@ -610,70 +637,64 @@
                             </button>
                         </div>
                     `;
+            }
+
+            // --- Implement Related Videos (From Cache/Current Grid) ---
+            const relatedContainer = document.getElementById('related-videos');
+            relatedContainer.style.opacity = '1';
+            relatedContainer.innerHTML = ''; // Clear placeholder
+
+            // Get current videos from grid (Simple Recommendation Strategy)
+            const gridVideos = document.querySelectorAll('.video-card');
+            let count = 0;
+
+            gridVideos.forEach(card => {
+                if (count >= 8) return; // Limit to 8 related
+                const title = card.querySelector('.title').innerText;
+                if (title === video.title) return; // Skip self
+
+                const clone = card.cloneNode(true);
+                clone.className = 'related-item';
+                clone.style.display = 'flex';
+                clone.style.marginBottom = '10px';
+                clone.style.gap = '10px';
+                clone.style.cursor = 'pointer';
+
+                const img = clone.querySelector('img');
+                img.style.width = '120px';
+                img.style.aspectRatio = '16/9';
+                img.style.height = 'auto';
+                img.style.borderRadius = '4px';
+
+                const info = clone.querySelector('.info');
+                info.style.padding = '0';
+                info.style.flex = '1';
+
+                const vid = card.getAttribute('data-vid');
+                if (vid) {
+                    const vidObj = {
+                        id: vid,
+                        title: title,
+                        uploader: card.querySelector('.uploader').innerText,
+                        thumbnail: img.src
+                    };
+                    clone.onclick = function () {
+                        openPlayer(vidObj);
+                        document.querySelector('.overlay-container').scrollTop = 0;
+                    };
+                    relatedContainer.appendChild(clone);
+                    count++;
                 }
+            });
 
-                // --- Implement Related Videos (From Cache/Current Grid) ---
-                const relatedContainer = document.getElementById('related-videos');
-                relatedContainer.style.opacity = '1';
-                relatedContainer.innerHTML = ''; // Clear placeholder
-
-                // Get current videos from grid (Simple Recommendation Strategy)
-                const gridVideos = document.querySelectorAll('.video-card');
-                let count = 0;
-
-                gridVideos.forEach(card => {
-                    if (count >= 8) return; // Limit to 8 related
-                    const title = card.querySelector('.title').innerText;
-                    if (title === video.title) return; // Skip self
-
-                    const clone = card.cloneNode(true);
-                    clone.className = 'related-item';
-                    clone.style.display = 'flex';
-                    clone.style.marginBottom = '10px';
-                    clone.style.gap = '10px';
-                    clone.style.cursor = 'pointer';
-
-                    const img = clone.querySelector('img');
-                    img.style.width = '120px';
-                    img.style.aspectRatio = '16/9';
-                    img.style.height = 'auto';
-                    img.style.borderRadius = '4px';
-
-                    const info = clone.querySelector('.info');
-                    info.style.padding = '0';
-                    info.style.flex = '1';
-
-                    const vid = card.getAttribute('data-vid');
-                    if (vid) {
-                        const vidObj = {
-                            id: vid,
-                            title: title,
-                            uploader: card.querySelector('.uploader').innerText,
-                            thumbnail: img.src
-                        };
-                        clone.onclick = function () {
-                            openPlayer(vidObj);
-                            document.querySelector('.overlay-container').scrollTop = 0;
-                        };
-                        relatedContainer.appendChild(clone);
-                        count++;
-                    }
-                });
-
-                if (count === 0) {
-                    relatedContainer.innerHTML = '<div style="padding:15px;color:#555;text-align:center;">無相關影片建議</div>';
-                }
-            } else {
-                loader.textContent = "Error: " + (data.error || "Cannot fetch stream");
+            if (count === 0) {
+                relatedContainer.innerHTML = '<div style="padding:15px;color:#555;text-align:center;">無相關影片建議</div>';
             }
         } catch (e) {
-            if (e.message === 'Timeout' || e.name === 'AbortError') {
-                loader.textContent = "請求超時 (Timeout)，請重試";
-            } else {
-                loader.textContent = "Network Error: " + e.message;
-            }
+            console.log('[Player] Could not fetch metadata, but video will still play');
         }
     }
+
     async function checkSubscriptionStatus(channelId) {
         // Helper to check sub status. 
         // Since we didn't implement a dedicated check API, we can lazily use 'get_subscriptions' (cached logic preferred)
