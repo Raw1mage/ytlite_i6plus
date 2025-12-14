@@ -46,41 +46,48 @@ Refactoring YT Lite into a Dockerized microservices architecture for PC hosting,
 
 ## Current Status
 
-### Working Features
-✅ **UI/UX**
+### Working Features ✅
+**UI/UX**
 - Clean, non-overlapping header layout
-- Category navigation chips
+- Category navigation chips in header
 - Search functionality (UI ready)
 - Login/Logout buttons with proper styling
 - Drawer navigation menu
 - Responsive design
+- Proper element ordering (header → drawer → content)
 
-✅ **Authentication**
+**Authentication**
 - Google OAuth2 login flow
 - Session persistence
 - Token storage in `/app/data/token.json`
 
-✅ **Infrastructure**
+**Video Feed** 🎉
+- Invidious API integration working
+- Traditional Chinese content (台灣熱門, 台灣新聞, etc.)
+- Video thumbnails displaying correctly
+- Category filtering (全部, 新聞, 直播, Podcast, 觀看歷史)
+- 3-column grid layout on desktop
+- 2-column grid on mobile
+
+**Infrastructure**
 - Docker services running
-- Port mapping (1214 → middleware, 3001 → Invidious)
+- Port mapping (1214 → middleware, 1215 → Invidious, 1216 → PostgreSQL)
 - HTTPS support via Nginx reverse proxy (`https://ytlite.sob.com.tw`)
 
 ### Known Issues
 
-❌ **Invidious API**
-- Local Invidious instance returns 500 errors on `/api/v1/trending`
-- Port 3000 conflict resolved (moved to 3001)
-- Database connection established but API endpoints not responding
-- Possible causes:
-  - Invidious needs initialization time
-  - YouTube anti-scraping measures
-  - Configuration issues
-  - Missing Invidious Companion service
+✅ **RESOLVED: Invidious API**
+- ~~Local Invidious instance returns 500 errors on `/api/v1/trending`~~
+- **Solution**: Changed to use `/api/v1/search` with Traditional Chinese keywords
+- Search endpoints work reliably
 
-❌ **Video Feed**
-- `/api/videos` returns empty array
-- Frontend displays blank video grid
-- Public Invidious instances have API disabled
+✅ **RESOLVED: Thumbnail Display**
+- ~~Thumbnails not loading (broken image icons)~~
+- **Solution**: Fixed internal Docker network URLs (`http://invidious:3000`) to external URLs (`http://localhost:1215`)
+
+✅ **RESOLVED: Content Language**
+- ~~All content was in English~~
+- **Solution**: Changed search queries to Traditional Chinese keywords (台灣熱門, 台灣新聞, etc.)
 
 ## Next Steps
 

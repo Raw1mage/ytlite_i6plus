@@ -399,7 +399,7 @@
         }
     }
 
-    async function selectCategory(cat, element, refresh = false) {
+    async function loadCategory(cat, element, refresh = false) {
         // If cat starts with 'channel:', it's a special channel filter
         if (cat.startsWith('channel:')) {
             // Placeholder for channel specific logic

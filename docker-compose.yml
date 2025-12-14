@@ -14,6 +14,8 @@ services:
       POSTGRES_USER: kemal
       POSTGRES_PASSWORD: password
     restart: unless-stopped
+    ports:
+      - "1216:5432" # Optional: expose for debugging
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U kemal -d invidious" ]
       interval: 5s
@@ -26,7 +28,7 @@ services:
     container_name: ytlite-engine
     restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "1215:3000" # Changed from 3001 to 1215
     volumes:
       - ./BUILD/invidious/config.yml:/invidious/config/config.yml
     environment:
@@ -44,12 +46,12 @@ services:
     container_name: ytlite-web
     restart: unless-stopped
     ports:
-      - "1214:8080"
+      - "1214:8080" # Web interface
     volumes:
       - ./src/middleware:/app
       - /opt/ytlite_v3/user_db:/app/data
     environment:
-      INVIDIOUS_API_URL: https://inv.nadeko.net
+      INVIDIOUS_API_URL: http://invidious:3000 # Internal Docker network
       PORT: 8080
     depends_on:
       - invidious

@@ -166,16 +166,25 @@ async def get_videos(category: str = "all", pageToken: str = ""):
     """
     Proxy request to Invidious API.
     Category Mapping:
-    - all -> Invidious Trending or Popular
-    - news -> Search "News" or specific channel list?
+    - all -> Search for popular/recent content
+    - news -> Search "Taiwan News"
+    - live -> Search with type=video&features=live
+    - podcast -> Search "podcast"
+    - history -> Client-side localStorage
     """
     async with httpx.AsyncClient() as client:
         try:
-            # Map YT Lite categories to Invidious endpoints
+            # Map YT Lite categories to Invidious search queries
+            # Note: Using search instead of trending due to YouTube API restrictions
             if category == 'all':
-                # Use Trending for 'High Performance' default feed
-                # endpoint: /api/v1/trending?region=TW
-                url = f"{INVIDIOUS_API_URL}/api/v1/trending?region=TW"
+                # General popular content in Traditional Chinese
+                url = f"{INVIDIOUS_API_URL}/api/v1/search?q=台灣+熱門&sort_by=relevance&type=video"
+            elif category == 'news':
+                url = f"{INVIDIOUS_API_URL}/api/v1/search?q=台灣新聞&sort_by=upload_date&type=video"
+            elif category == 'live':
+                url = f"{INVIDIOUS_API_URL}/api/v1/search?q=台灣+直播&features=live&type=video"
+            elif category == 'podcast':
+                url = f"{INVIDIOUS_API_URL}/api/v1/search?q=中文+podcast&type=video"
             else:
                 # Fallback to search for other categories
                 url = f"{INVIDIOUS_API_URL}/api/v1/search?q={category}&type=video"
@@ -193,9 +202,23 @@ async def get_videos(category: str = "all", pageToken: str = ""):
                 if 'videoId' not in item or 'title' not in item: continue
                 
                 # Pick best thumbnail (usually high quality is available)
-                thumb = item.get('videoThumbnails', [{}])[0].get('url', '')
-                if not thumb and 'id' in item: # fallback
-                     thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
+                thumbnails = item.get('videoThumbnails', [])
+                thumb = ''
+                if thumbnails and len(thumbnails) > 0:
+                    thumb = thumbnails[0].get('url', '')
+                    
+                    # Fix internal Docker URLs to external URLs
+                    if thumb:
+                        # Replace internal Docker network address with external address
+                        if 'invidious:3000' in thumb:
+                            thumb = thumb.replace('http://invidious:3000', 'http://localhost:1215')
+                        # Fix relative URLs from Invidious
+                        elif thumb.startswith('/'):
+                            thumb = f"http://localhost:1215{thumb}"
+                
+                # Fallback to YouTube CDN (most reliable)
+                if not thumb:
+                    thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
 
                 transformed.append({
                     "id": item['videoId'],
