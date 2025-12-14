@@ -234,31 +234,35 @@ def search():
     return render_template('results.html', results=results, query=query, logged_in=False)
 
 
+
 def get_yt_stream(video_id):
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     try:
         import shlex
+        
         # Optimization: Get both stream URL and metadata in ONE call
-        # Using shell=True to bypass iOS subprocess execve issues (invalid literal for int() with base 16)
+        # Using os.popen to completely bypass subprocess module issues on iOS 12
         
         # Construct command parts
-        cmd_parts = [YTDLP_CMD, "--dump-json", "-f", "best[ext=mp4]", video_url]
-        # properly quote for shell
+        # Add internal timeout to yt-dlp since os.popen doesn't support it directly
+        cmd_parts = [YTDLP_CMD, "--dump-json", "-f", "best[ext=mp4]", "--socket-timeout", "30", video_url]
         cmd_str = ' '.join(shlex.quote(s) for s in cmd_parts)
         
-        print(f"DEBUG: Running shell command: {cmd_str}")
+        print(f"DEBUG: Running os.popen: {cmd_str}")
         
-        # close_fds=False is sometimes needed on mobile, but shell=True usually isolates enough
-        result = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, timeout=60)
+        stream = os.popen(cmd_str)
+        output = stream.read()
+        status = stream.close()
         
-        if result.returncode != 0:
-             print(f"ERROR: yt-dlp shell call failed: {result.stderr}")
-             return None, None
+        # status is None if success (0), or return code
+        if status is not None:
+             print(f"ERROR: os.popen failed with status: {status}")
+             # We might still have output in 'output' variable, let's try to parse it anyway
+             # because sometimes close() returns non-None even if some output was obtained
              
-        # yt-dlp --dump-json output might contain warnings on lines before the JSON
-        # We need to find the line that is valid JSON.
+        # yt-dlp --dump-json output might contain warnings
         info = None
-        for line in result.stdout.splitlines():
+        for line in output.splitlines():
              try:
                  possible_json = json.loads(line)
                  if 'url' in possible_json:
@@ -268,12 +272,9 @@ def get_yt_stream(video_id):
                  continue
                  
         if not info:
-             # If no JSON line found, maybe try parsing the whole thing (unlikely for dump-json but possible)
-             try:
-                 info = json.loads(result.stdout)
-             except:
-                 print("ERROR: Could not parse JSON from yt-dlp output")
-                 return None, None
+             print("ERROR: Could not parse JSON from yt-dlp output")
+             # print(f"DEBUG: Output was: {output}") 
+             return None, None
 
         stream_url = info.get('url')
         
@@ -284,9 +285,6 @@ def get_yt_stream(video_id):
         print(f"DEBUG: Stream URL obtained from JSON: {stream_url[:50]}...")
         return stream_url, info
         
-    except subprocess.TimeoutExpired:
-        print("ERROR: yt-dlp timed out (60s)")
-        return None, None
     except Exception as e: 
         import traceback
         traceback.print_exc()

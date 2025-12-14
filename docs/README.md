@@ -19,11 +19,17 @@ It runs **on-device** using Python Flask and yt-dlp, serving a stripped-down HTM
     - `flask`, `yt-dlp`
     - `git`
 2.  **Setup:**
-    \`\`\`bash
+    ```bash
     git clone <repo_url>
     cd yt_lite
     python3 app.py
-    \`\`\`
+    ```
 3.  **Usage:**
-    Open Safari and navigate to \`http://localhost:5000\`.
+    Open Safari and navigate to `http://localhost` (Port 80).
     Tap "Share" -> "Add to Home Screen" for a fullscreen app experience.
+
+## Features
+- **Search & Categories:** Filter by News, Live, Podcast.
+- **Watch History:** Local browser-based history (Last 50 videos).
+- **Overlay Player:** Watch videos without leaving the search results.
+- **Optimization:** Direct mp4 extraction optimized for legacy iOS.
