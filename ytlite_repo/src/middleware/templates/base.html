@@ -36,7 +36,7 @@
             top: 0;
             left: 0;
             width: 100%;
-            z-index: 100;
+            z-index: 2100;
             box-sizing: border-box;
             border-bottom: 1px solid #333;
         }
@@ -413,7 +413,7 @@
                 <div id="player-desc" class="desc-clamped">Description</div>
             </div>
             <h3 style="font-size: 16px; margin: 16px 0 10px;">接下來播放</h3>
-            <div id="related-videos" style="opacity: 0.5;">
+            <div id="related-videos">
                 <div style="padding: 20px; text-align: center; color: #555;">(相關影片功能開發中)</div>
             </div>
             <div style="height: 50px;"></div>
@@ -450,7 +450,7 @@
             z-index: 1002;
             flex-shrink: 0;
             transition: width 0.3s, height 0.3s;
-            min-height: 60vh;
+            min-height: 0;
             margin: 6px 0 0;
             padding: 0;
             box-sizing: border-box;
@@ -459,7 +459,9 @@
         .video-wrapper {
             position: relative;
             width: 100%;
-            height: 60vh;
+            height: 0;
+            padding-bottom: 56.25%;
+            /* 16:9 Aspect Ratio */
             max-height: 600px;
             border-radius: 6px;
             overflow: hidden;
@@ -763,6 +765,18 @@
         }
 
         // --- Channel & Nav Logic ---
+        function loadCategory(cat, btn) {
+            if (window.location.pathname !== '/' || window.location.search.includes('?v=')) {
+                window.location.href = '/?category=' + cat;
+            } else {
+                if (typeof window.loadCategoryInternal === 'function') {
+                    window.loadCategoryInternal(cat, btn);
+                } else {
+                    window.location.href = '/?category=' + cat;
+                }
+            }
+        }
+
         function loadChannel(channelName, channelId = '') {
             closeDrawer();
             if (channelId) {
@@ -798,6 +812,25 @@
                 btn.textContent = '展開';
             }
         }
+
+        window.addEventListener('popstate', function (event) {
+            const overlay = document.getElementById('player-overlay');
+            if (overlay && overlay.style.display === 'flex') {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (!urlParams.has('v')) {
+                    // Close UI without touching history
+                    const iframe = document.getElementById('youtube-iframe');
+                    overlay.style.display = 'none';
+                    overlay.classList.remove('minimized');
+                    window.isMinimized = false;
+                    if (iframe) {
+                        iframe.src = '';
+                        iframe.style.display = 'none';
+                    }
+                    document.body.style.overflow = '';
+                }
+            }
+        });
 
         function toggleMiniPlayer(e) {
             if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -957,6 +990,7 @@
                 const res = await fetch(`/api/get_stream?v=${video.id}`);
                 const data = await res.json();
                 if (data.info) {
+                    if (data.info.title) document.getElementById('player-title').textContent = data.info.title;
                     if (data.info.description) document.getElementById('player-desc').textContent = data.info.description;
                     const viewText = data.info.view_count ? ` • ${Math.floor(data.info.view_count / 10000)}萬觀看` : '';
                     const channelId = data.info.channel_id;
@@ -977,36 +1011,61 @@
                 const relatedContainer = document.getElementById('related-videos');
                 relatedContainer.innerHTML = '';
                 // Try to find video cards in current page
-                const currentCards = document.querySelectorAll('.video-card');
-                let count = 0;
-                currentCards.forEach(card => {
-                    if (count >= 8) return;
-                    const title = card.querySelector('.title').innerText;
-                    if (title === video.title) return;
-                    const clone = card.cloneNode(true);
-                    clone.style.display = 'flex';
-                    clone.style.gap = '10px';
-                    clone.style.marginBottom = '10px';
-                    clone.querySelector('img').style.width = '120px';
-                    clone.querySelector('img').style.height = 'auto'; // aspect ratio handled by css usually
-                    clone.querySelector('img').style.flexShrink = '0';
-
-                    const vid = card.getAttribute('data-vid');
-                    if (vid) {
-                        clone.onclick = function () {
-                            openPlayer({
-                                id: vid,
-                                title: title,
-                                uploader: card.querySelector('.uploader').innerText,
-                                thumbnail: card.querySelector('img').src
-                            });
+                if (data.related_videos && data.related_videos.length > 0) {
+                    relatedContainer.innerHTML = '';
+                    data.related_videos.forEach(vid => {
+                        const div = document.createElement('div');
+                        div.style.display = 'flex';
+                        div.style.gap = '10px';
+                        div.style.marginBottom = '10px';
+                        div.style.cursor = 'pointer';
+                        div.onclick = function () {
+                            openPlayer(vid);
                             document.querySelector('.overlay-container').scrollTop = 0;
                         };
-                        relatedContainer.appendChild(clone);
-                        count++;
-                    }
-                });
-                if (count === 0) relatedContainer.innerHTML = '<div style="padding:15px;color:#555;text-align:center;">無相關影片建議</div>';
+                        div.innerHTML = `
+                            <img src="${vid.thumbnail}" style="width:120px; height:auto; aspect-ratio:16/9; object-fit:cover; border-radius:4px;">
+                            <div style="flex:1;">
+                                <div style="font-size:14px; font-weight:600; margin-bottom:4px; line-height:1.2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${vid.title}</div>
+                                <div style="font-size:12px; color:#aaa;">${vid.uploader}</div>
+                            </div>
+                        `;
+                        relatedContainer.appendChild(div);
+                    });
+                } else {
+                    // Fallback to DOM scraping if no API data
+                    const currentCards = document.querySelectorAll('.video-card');
+                    let count = 0;
+                    currentCards.forEach(card => {
+                        if (count >= 8) return;
+                        const title = card.querySelector('.title').innerText;
+                        if (title === video.title) return;
+                        const clone = card.cloneNode(true);
+                        clone.style.display = 'flex';
+                        clone.style.gap = '10px';
+                        clone.style.marginBottom = '10px';
+                        clone.querySelector('img').style.width = '120px';
+                        clone.querySelector('img').style.height = 'auto';
+                        clone.querySelector('img').style.flexShrink = '0';
+
+                        const vid = card.getAttribute('data-vid');
+                        if (vid) {
+                            clone.onclick = function () {
+                                openPlayer({
+                                    id: vid,
+                                    title: title,
+                                    uploader: card.querySelector('.uploader').innerText,
+                                    thumbnail: card.querySelector('img').src
+                                });
+                                document.querySelector('.overlay-container').scrollTop = 0;
+                            };
+                            relatedContainer.appendChild(clone);
+                            count++;
+                        }
+                    });
+                    if (count === 0 && (!data.related_videos || data.related_videos.length === 0)) relatedContainer.innerHTML = '<div style="padding:15px;color:#555;text-align:center;">無相關影片建議</div>';
+                }
+
 
             } catch (e) { console.log('Metadata error', e); }
         }

@@ -46,3 +46,54 @@
 ## 2025-12-13：依賴安裝（iOS）
 - `flask`、`yt-dlp` 安裝時因缺乏編譯器觸發 `MarkupSafe` 編譯錯誤；pip 自動回退到可用的 wheel，無需額外處置。未來需要 C 擴充套件（例如 `numpy`）時，需尋找 iOS/Procursus 的預編譯套件。
 - iOS 上無 `pip`：透過 `python3 -m ensurepip` 重新安裝。
+# Debug Log & Root Cause Analysis
+
+## 2025-12-15: Video Player UI Layout Regression
+
+### Issue Description
+Attempted to remove the vertical black gap (letterboxing) below the video player in the overlay. The user reported that the modification caused:
+1.  Video player becoming full screen with excessive gaps.
+2.  Info/Description section disappearing.
+3.  Navigation bar buttons becoming unclickable.
+4.  "Back" navigation issues where the URL changed but the UI remained stuck.
+
+### Root Cause Analysis (RCA)
+1.  **CSS Layout Conflict**: The original layout relied on a fixed `min-height: 60vh` for the `.video-section`. The attempt to switch to a pure aspect-ratio hack (`padding-bottom: 56.25%` with `height: 0`) within a Flexbox container (`.overlay-container`) likely caused the container to miscalculate availability height, pushing the `.full-info` block out of the viewport or collapsing it.
+2.  **Z-Index War**: In an attempt to ensure the overlay covered the content, `z-index` values were modified. The overlay's `z-index` (1050) was accidentally set higher than or effectively blocking the header's interactivity context, or the full-screen video expansion overlapped the fixed header.
+3.  **Aggressive Refactoring**: Too many CSS properties (margins, paddings, display offsets) were changed simultaneously without visual verification, leading to a "broken state" rather than a marginal improvement.
+
+### Resolution
+Reverted `base.html` to the known stable state (approx Step 2502). This restored the `60vh` fixed height, ensuring the info section is visible and the header remains interactive. The navigation logic for `popstate` was kept as it was robust, but the CSS was rolled back.
+
+### Lessons Learned
+- CSS Layout changes involving Flexbox and Aspect Ratio hacks on mobile identifiers (like iPhone 6 Plus simulation) are fragile.
+- Avoid modifying global `z-index` hierarchies without a complete map of layers.
+- Incremental CSS changes are safer than rewriting entire block styles.
+
+---
+
+## Incident Log: 2025-12-15 - Black Screen & DB Crash
+
+### What Changed
+- **Frontend (`base.html`)**: Adjusted `footer` z-index, modified `openPlayer` to use `related_videos` from API, changed CSS for `.video-wrapper` (aspect-ratio hack).
+- **Backend (`main.py`)**: Updated `/api/get_stream` to include `recommendedVideos` in response.
+- **Environment**: Executed `./webctl.sh restart`.
+
+### Symptoms
+- User reported "No video screen" (black screen below header).
+- Navigation bar visible (header).
+- Content (Grid) missing.
+- Screenshot confirms black body content.
+
+### Root Cause Analysis
+1.  **DB Failure (Primary)**: The `docker restart` command failed for `ytlite-postgres` with an OCI runtime error (mount issue). The container exited (Status: Exited 127).
+    - Without the database, Invidious cannot perform searches.
+    - `main.py` catches the error and returns empty video lists.
+    - `index.html` receives empty list, clears the grid, and shows nothing (no "Loading", just empty).
+2.  **Code Issues (Secondary)**: 
+    - A ReferenceError (`count is not defined`) was introduced in `./base.html` because a variable check was left outside its defining block scope during the multi-replace edit. This likely would have caused `openPlayer` to crash, but the primary black screen is due to the DB.
+
+### Action Plan
+1.  **Revert**: Rollback `main.py` and `base.html` to previous state. (DONE)
+2.  **Recover**: Hard restart Docker containers (`docker-compose down && up`) to fix the mount/DB issue.
+3.  **Retry Check**: Verify app is working (displaying videos) before attempting fixes again.

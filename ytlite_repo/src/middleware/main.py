@@ -364,6 +364,31 @@ async def get_stream_proxy(v: str):
                 "description": data.get('description', '')[:200] + "...",
                 "view_count": data.get('viewCount')
             }
+
+            # Related Videos
+            related = []
+            for item in data.get('recommendedVideos', []):
+                if 'videoId' not in item or 'title' not in item: continue
+                
+                thumbnails = item.get('videoThumbnails', [])
+                thumb = ''
+                if thumbnails:
+                    thumb = thumbnails[0].get('url', '')
+                    if 'invidious:3000' in thumb:
+                        thumb = thumb.replace('http://invidious:3000', 'http://localhost:1215')
+                    elif thumb.startswith('/'):
+                        thumb = f"http://localhost:1215{thumb}"
+                if not thumb:
+                    thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
+                
+                related.append({
+                    "id": item['videoId'],
+                    "title": item['title'],
+                    "uploader": item.get('author', 'Unknown'),
+                    "channel_id": item.get('authorId', ''),
+                    "thumbnail": thumb,
+                    "view_count": item.get('viewCount', 0)
+                })
             
             if not best_stream:
                  return {"error": "No suitable stream found"}
@@ -371,7 +396,8 @@ async def get_stream_proxy(v: str):
             return {
                 "stream_url": best_stream,
                 "info": info,
-                "mime_type": "video/mp4" # Assumption
+                "mime_type": "video/mp4", # Assumption
+                "related_videos": related
             }
 
         except Exception as e:

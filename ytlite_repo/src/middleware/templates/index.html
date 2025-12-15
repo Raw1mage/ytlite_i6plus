@@ -76,7 +76,7 @@
         }
     }
 
-    async function loadCategory(cat, element, refresh = false) {
+    async function loadCategoryInternal(cat, element, refresh = false) {
         if (typeof closeOverlayIfOpen === 'function') closeOverlayIfOpen();
 
         if (element) {
@@ -94,6 +94,9 @@
         currentCategory = cat;
         await loadVideos(true);
     }
+
+    // Expose for base.html to call
+    window.loadCategoryInternal = loadCategoryInternal;
 
     window.onload = function () {
         const urlParams = new URLSearchParams(window.location.search);
