@@ -16,6 +16,24 @@ When you modify backend code (Python files in `src/middleware`), you must restar
 - Stop: `./webctl.sh stop`
 - Logs: `./webctl.sh logs`
 
+## Pre-Commit Checklist & SOP
+**Objective:** Maintain documentation accuracy and track project history effectively.
+**Trigger:** Before executing `git commit`.
+
+**Procedure:**
+1.  **Update Progress**:
+    - File: `docs/PROGRESS.md`
+    - Action: Mark completed tasks, update "Current Status", and refine "Next Steps".
+2.  **Update Debug Log**:
+    - File: `docs/DEBUGLOG.md`
+    - Action: Ensure all recent bugs, fixes, and incidents are recorded.
+3.  **Update Documentation (If Applicable)**:
+    - File: `README.md`
+    - Action: If the project structure, dependencies, or installation steps have changed, update this file.
+4.  **Plan Next Steps**:
+    - File: `docs/PROGRESS.md` (or `README.md`)
+    - Action: Clearly document what will be developed next.
+
 ## Troubleshooting & Stability SOP
 **Trigger:** If a modification causes the application to break (e.g., black screen, backend errors, layout breakage) or fails to fix the issue.
 

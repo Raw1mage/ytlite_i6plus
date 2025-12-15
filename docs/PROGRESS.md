@@ -11,11 +11,16 @@
 - `/api/videos` 繁中搜尋代理（台灣熱門/新聞/直播/Podcast）與縮圖 URL 修正
 - UI：行動優先網格、分類 Chips、Drawer、搜尋框
 - 播放器：全螢幕/迷你、iframe 播放回退、無快取標頭
+- **功能修復 (2025-12-15)**:
+    - 相關影片 ("Next Up") 功能實作 (來自 Invidious `recommendedVideos`)。
+    - Header Z-Index 與點擊問題修復。
+    - 播放介面 UI 間距 (Aspect Ratio) 與 Back Button 邏輯優化。
+    - 搜尋結果頁面分類按鈕修復。
 
 ## 現況
 - 影片清單與縮圖正常，分類可切換。
-- 搜尋頁已接 Invidious `/api/v1/search`，但回傳為空／頁面顯示未登入，需要後端/日誌排查。
-- iframe 播放穩定；若 metadata 失敗，標題/作者可能暫時顯示「Loading...」但不影響播放。
+- 搜尋功能正常，播放器 UI 與互動修復完畢。
+- iframe 播放穩定；相關影片已可顯示並點擊播放。
 - OAuth token 儲存於 `/app/data/token.json`（Docker 掛載）。
 
 ## 待處理
@@ -25,8 +30,8 @@
 - [ ] LocalStorage 觀看歷史 + Drawer 分頁
 
 2) 搜尋
-- [ ] 搜尋結果為空／未登入狀態：檢查 Invidious 回應與 session，修正登入狀態傳遞
-- [ ] 搜尋結果頁模板完善並支援播放
+- [x] 搜尋結果為空／未登入狀態 (主要流程已修復，需持續觀察)
+- [ ] 搜尋結果頁模板完善並支援播放 (目前已可播放，需優化介面)
 - [ ] 最近搜尋記錄
 
 3) 體驗/品質
