@@ -1,4 +1,4 @@
-# YT Lite v3（iPhone 6 Plus 版）
+# YT Lite
 
 面向舊款 iPhone 6 Plus 的自架 YouTube 體驗。以 PC／WSL 上的 FastAPI 中介層與 Invidious 提供精簡內容，前端在手機 Safari（WebClip/PWA）播放，主要介面與資料均採繁體中文。
 
