@@ -119,6 +119,11 @@ async def oauth2callback(request: Request):
         
     return RedirectResponse("/")
 
+import asyncio
+import random
+
+# ... (imports) ...
+
 @app.get("/logout")
 async def logout(request: Request):
     if os.path.exists(TOKEN_PATH):
@@ -128,20 +133,13 @@ async def logout(request: Request):
 
 from googleapiclient.discovery import build
 
-@app.get("/api/subscriptions")
-async def get_subscriptions():
-    creds = get_creds()
-    if not creds or not creds.valid:
-        return {"error": "Not logged in"}
-    
+def fetch_subscriptions_internal(creds, max_results=50):
     try:
         service = build('youtube', 'v3', credentials=creds)
-        
-        # Max 50 subscriptions to start
         response = service.subscriptions().list(
             part="snippet",
             mine=True,
-            maxResults=50,
+            maxResults=max_results,
             order="alphabetical"
         ).execute()
         
@@ -153,31 +151,74 @@ async def get_subscriptions():
                 "title": snippet["title"],
                 "thumbnail": snippet["thumbnails"]["default"]["url"]
             })
-            
         return subs
-        
     except Exception as e:
         print(f"Sub Error: {e}")
-        return {"error": str(e)}
+        return []
 
+@app.get("/api/subscriptions")
+async def get_subscriptions():
+    creds = get_creds()
+    if not creds or not creds.valid:
+        return {"error": "Not logged in"}
+    
+    subs = fetch_subscriptions_internal(creds)
+    return {"subscriptions": subs} # Return object to match frontend expectation
 
 @app.get("/api/videos")
 async def get_videos(category: str = "all", pageToken: str = ""):
     """
     Proxy request to Invidious API.
-    Category Mapping:
-    - all -> Search for popular/recent content
-    - news -> Search "Taiwan News"
-    - live -> Search with type=video&features=live
-    - podcast -> Search "podcast"
-    - history -> Client-side localStorage
     """
+    creds = get_creds()
+    logged_in = (creds is not None and creds.valid)
+    
     async with httpx.AsyncClient() as client:
         try:
-            # Map YT Lite categories to Invidious search queries
-            # Note: Using search instead of trending due to YouTube API restrictions
+            # PERSONALIZED FEED LOGIC
+            feed_videos = []
+            if category == 'all' and logged_in and not pageToken:
+                # 1. Get Subscriptions
+                subs = fetch_subscriptions_internal(creds, max_results=50)
+                if subs:
+                    # 2. Pick Random 3-5 Channels
+                    targets = random.sample(subs, k=min(len(subs), 5))
+                    
+                    # 3. Fetch Latest Videos Concurrently
+                    tasks = []
+                    for sub in targets:
+                        url = f"{INVIDIOUS_API_URL}/api/v1/channels/{sub['channelId']}"
+                        tasks.append(client.get(url))
+                    
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    for res in results:
+                        if isinstance(res, httpx.Response) and res.status_code == 200:
+                            data = res.json()
+                            author_name = data.get('author', 'Unknown')
+                            author_id = data.get('authorId', '')
+                            
+                            for item in data.get('latestVideos', [])[:5]: # Top 5 per channel
+                                # ... helper to process thumbnail ...
+                                thumb = ''
+                                if item.get('videoThumbnails'):
+                                    thumb = item['videoThumbnails'][0]['url']
+                                    if 'invidious:3000' in thumb: thumb = thumb.replace('http://invidious:3000', 'http://localhost:1215')
+                                    elif thumb.startswith('/'): thumb = f"http://localhost:1215{thumb}"
+                                if not thumb: thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
+                                
+                                feed_videos.append({
+                                    "id": item['videoId'],
+                                    "title": item['title'],
+                                    "uploader": author_name,
+                                    "channel_id": author_id,
+                                    "thumbnail": thumb,
+                                    "view_count": item.get('viewCount', 0),
+                                    "published": item.get('published', 0) # For sorting
+                                })
+
+            # EXISTING SEARCH LOGIC
             if category == 'all':
-                # General popular content in Traditional Chinese
                 url = f"{INVIDIOUS_API_URL}/api/v1/search?q=台灣+熱門&sort_by=relevance&type=video"
             elif category == 'news':
                 url = f"{INVIDIOUS_API_URL}/api/v1/search?q=台灣新聞&sort_by=upload_date&type=video"
@@ -186,50 +227,50 @@ async def get_videos(category: str = "all", pageToken: str = ""):
             elif category == 'podcast':
                 url = f"{INVIDIOUS_API_URL}/api/v1/search?q=中文+podcast&type=video"
             else:
-                # Fallback to search for other categories
                 url = f"{INVIDIOUS_API_URL}/api/v1/search?q={category}&type=video"
+            
+            if pageToken:
+                url += f"&page={pageToken}"
             
             resp = await client.get(url)
             data = resp.json()
             
-            # Transform Invidious Data to YT Lite Format
-            # Invidious returns: [{videoId:..., title:..., author:..., videoThumbnails:[...]}]
-            # YT Lite expects: [{id:..., title:..., uploader:..., thumbnail:...}]
-            
-            transformed = []
-            for item in data:
-                # Safety check for minimal fields
-                if 'videoId' not in item or 'title' not in item: continue
-                
-                # Pick best thumbnail (usually high quality is available)
-                thumbnails = item.get('videoThumbnails', [])
-                thumb = ''
-                if thumbnails and len(thumbnails) > 0:
-                    thumb = thumbnails[0].get('url', '')
-                    
-                    # Fix internal Docker URLs to external URLs
-                    if thumb:
-                        # Replace internal Docker network address with external address
-                        if 'invidious:3000' in thumb:
-                            thumb = thumb.replace('http://invidious:3000', 'http://localhost:1215')
-                        # Fix relative URLs from Invidious
-                        elif thumb.startswith('/'):
-                            thumb = f"http://localhost:1215{thumb}"
-                
-                # Fallback to YouTube CDN (most reliable)
-                if not thumb:
-                    thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
+            search_videos = []
+            if isinstance(data, list):
+                for item in data:
+                     if 'videoId' not in item or 'title' not in item: continue
+                     
+                     # ... same thumb logic ...
+                     thumbnails = item.get('videoThumbnails', [])
+                     thumb = ''
+                     if thumbnails:
+                        thumb = thumbnails[0].get('url', '')
+                        if 'invidious:3000' in thumb: thumb = thumb.replace('http://invidious:3000', 'http://localhost:1215')
+                        elif thumb.startswith('/'): thumb = f"http://localhost:1215{thumb}"
+                     if not thumb: thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
 
-                transformed.append({
-                    "id": item['videoId'],
-                    "title": item['title'],
-                    "uploader": item.get('author', 'Unknown'),
-                    "channel_id": item.get('authorId', ''),
-                    "thumbnail": thumb,
-                    "view_count": item.get('viewCount', 0)
-                })
+                     search_videos.append({
+                        "id": item['videoId'],
+                        "title": item['title'],
+                        "uploader": item.get('author', 'Unknown'),
+                        "channel_id": item.get('authorId', ''),
+                        "thumbnail": thumb,
+                        "view_count": item.get('viewCount', 0)
+                    })
+
+            # MERGE & SHUFFLE
+            # If we have feed videos, show them first, mixed with some popular ones
+            final_list = feed_videos + search_videos
+            # Remove duplicates
+            seen = set()
+            unique_list = []
+            for v in final_list:
+                if v['id'] not in seen:
+                    unique_list.append(v)
+                    seen.add(v['id'])
             
-            return {"videos": transformed, "nextPageToken": ""}
+            # If we have personalized content, maybe shuffle a bit or just return
+            return {"videos": unique_list, "nextPageToken": str(int(pageToken)+1) if pageToken and pageToken.isdigit() else "2"}
             
         except Exception as e:
             print(f"Error proxying invidious: {e}")

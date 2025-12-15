@@ -737,12 +737,12 @@
                 const data = await res.json();
                 const list = document.getElementById('drawer-subs-list');
                 list.innerHTML = '';
-                if (data.subscriptions && data.subscriptions.length > 0) {
-                    data.subscriptions.forEach(sub => {
+                if (Array.isArray(data) && data.length > 0) {
+                    data.forEach(sub => {
                         const safeTitle = sub.title.replace(/'/g, "\\'");
                         const div = document.createElement('div');
                         div.className = 'drawer-item';
-                        div.onclick = function () { loadChannel(safeTitle); };
+                        div.onclick = function () { loadChannel(safeTitle, sub.channelId); };
                         div.innerHTML = `<img src="${sub.thumbnail}" loading="lazy"><div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sub.title}</div>`;
                         list.appendChild(div);
                     });
