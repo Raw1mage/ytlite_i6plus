@@ -408,13 +408,27 @@
             <div class="desc-block">
                 <div class="desc-header">
                     <span>影片說明</span>
-                    <button id="desc-toggle" onclick="toggleDesc()" class="desc-toggle">展開</button>
+                    <button id="desc-toggle" onclick="toggleDesc()" class="desc-toggle">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z" />
+                        </svg>
+                    </button>
                 </div>
                 <div id="player-desc" class="desc-clamped">Description</div>
             </div>
-            <h3 style="font-size: 16px; margin: 16px 0 10px;">接下來播放</h3>
-            <div id="related-videos">
-                <div style="padding: 20px; text-align: center; color: #555;">(相關影片功能開發中)</div>
+            <div class="related-block" style="margin-top: 10px;">
+                <div class="desc-header"
+                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="font-size: 16px; margin: 0;">接下來播放</h3>
+                    <button id="related-toggle" onclick="toggleRelated()" class="desc-toggle">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="related-videos">
+                    <div style="padding: 20px; text-align: center; color: #555;">(相關影片功能開發中)</div>
+                </div>
             </div>
             <div style="height: 50px;"></div>
         </div>
@@ -589,13 +603,15 @@
         }
 
         .desc-toggle {
-            background: #333;
-            color: #fff;
+            background: none;
+            color: #aaa;
             border: none;
-            padding: 4px 10px;
-            border-radius: 4px;
+            padding: 4px;
             font-size: 12px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #player-desc {
@@ -798,6 +814,9 @@
             localStorage.setItem('yt_lite_history', JSON.stringify(history));
         }
 
+        const iconDown = '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg>'; // Expand
+        const iconUp = '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/></svg>'; // Collapse
+
         // --- Player Logic ---
         function toggleDesc() {
             const desc = document.getElementById('player-desc');
@@ -805,11 +824,23 @@
             if (desc.classList.contains('desc-clamped')) {
                 desc.classList.remove('desc-clamped');
                 desc.classList.add('desc-expanded');
-                btn.textContent = '折疊';
+                btn.innerHTML = iconUp;
             } else {
                 desc.classList.remove('desc-expanded');
                 desc.classList.add('desc-clamped');
-                btn.textContent = '展開';
+                btn.innerHTML = iconDown;
+            }
+        }
+
+        function toggleRelated() {
+            const content = document.getElementById('related-videos');
+            const btn = document.getElementById('related-toggle');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                btn.innerHTML = iconUp;
+            } else {
+                content.style.display = 'none';
+                btn.innerHTML = iconDown;
             }
         }
 
@@ -950,7 +981,13 @@
             const descFn = document.getElementById('player-desc');
             descFn.className = 'desc-clamped';
             const descToggle = document.getElementById('desc-toggle');
-            if (descToggle) descToggle.textContent = '展開';
+            if (descToggle) descToggle.innerHTML = iconDown;
+
+            // Reset Related Toggle
+            const relatedContent = document.getElementById('related-videos');
+            const relatedToggle = document.getElementById('related-toggle');
+            if (relatedContent) relatedContent.style.display = 'block';
+            if (relatedToggle) relatedToggle.innerHTML = iconUp;
 
             // Channel & Meta
             const metaFn = document.getElementById('player-meta');
