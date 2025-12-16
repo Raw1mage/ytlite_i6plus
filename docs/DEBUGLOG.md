@@ -6,6 +6,7 @@
 - **症狀**：側邊抽屜「訂閱內容」顯示 `No subscriptions found.`，即使已登入且後端回傳訂閱清單。
 - **原因**：前端僅處理純陣列回傳，未解析 `/api/subscriptions` 的 `{ subscriptions: [...] }` 物件。
 - **處置**：前端改為優先取 `data.subscriptions`；若本身為陣列則沿用。
+- **後續**：外網縮圖出現 404（maxres.jpg）；改回穩定的 YouTube CDN `hqdefault` 並去除 localhost/invidious 連結，外網縮圖恢復正常。
 
 ## 2025-12-14：v3 重構—影片清單與播放（✅）
 - **Session ID**：2025-12-14_v3_refactor（21:45 UTC+8）

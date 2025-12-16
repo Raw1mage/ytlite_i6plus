@@ -39,6 +39,19 @@ SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+def normalize_thumb(video_id: str, thumb_url: str) -> str:
+    """
+    Ensure thumbnails are reachable externally by preferring YouTube CDN (hqdefault) when local-only URLs are detected.
+    Maxres 404s are common；hqdefault 比較穩定。
+    """
+    if not video_id:
+        return thumb_url or ''
+    if not thumb_url:
+        return f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+    if thumb_url.startswith('/') or 'invidious:3000' in thumb_url or 'localhost:1215' in thumb_url:
+        return f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+    return thumb_url or f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+
 def get_creds():
     if os.path.exists(TOKEN_PATH):
         try:
@@ -200,12 +213,7 @@ async def get_videos(category: str = "all", pageToken: str = ""):
                             
                             for item in data.get('latestVideos', [])[:5]: # Top 5 per channel
                                 # ... helper to process thumbnail ...
-                                thumb = ''
-                                if item.get('videoThumbnails'):
-                                    thumb = item['videoThumbnails'][0]['url']
-                                    if 'invidious:3000' in thumb: thumb = thumb.replace('http://invidious:3000', 'http://localhost:1215')
-                                    elif thumb.startswith('/'): thumb = f"http://localhost:1215{thumb}"
-                                if not thumb: thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
+                                thumb = normalize_thumb(item.get('videoId', ''), item.get('videoThumbnails', [{}])[0].get('url', ''))
                                 
                                 feed_videos.append({
                                     "id": item['videoId'],
@@ -242,12 +250,7 @@ async def get_videos(category: str = "all", pageToken: str = ""):
                      
                      # ... same thumb logic ...
                      thumbnails = item.get('videoThumbnails', [])
-                     thumb = ''
-                     if thumbnails:
-                        thumb = thumbnails[0].get('url', '')
-                        if 'invidious:3000' in thumb: thumb = thumb.replace('http://invidious:3000', 'http://localhost:1215')
-                        elif thumb.startswith('/'): thumb = f"http://localhost:1215{thumb}"
-                     if not thumb: thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
+                     thumb = normalize_thumb(item.get('videoId', ''), thumbnails[0].get('url', '') if thumbnails else '')
 
                      search_videos.append({
                         "id": item['videoId'],
@@ -293,15 +296,7 @@ async def search_page(request: Request, q: str):
                 if 'videoId' not in item or 'title' not in item:
                     continue
                 thumbnails = item.get('videoThumbnails', [])
-                thumb = ''
-                if thumbnails:
-                    thumb = thumbnails[0].get('url', '')
-                    if 'invidious:3000' in thumb:
-                        thumb = thumb.replace('http://invidious:3000', 'http://localhost:1215')
-                    elif thumb.startswith('/'):
-                        thumb = f"http://localhost:1215{thumb}"
-                if not thumb:
-                    thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
+                thumb = normalize_thumb(item.get('videoId', ''), thumbnails[0].get('url', '') if thumbnails else '')
 
                 videos.append({
                     "id": item['videoId'],
@@ -350,14 +345,7 @@ async def channel_videos(channelId: str):
             data = resp.json()
             videos = []
             for item in data.get('latestVideos', []):
-                thumb = item.get('videoThumbnails', [{}])[0].get('url', '')
-                if thumb:
-                    if 'invidious:3000' in thumb:
-                        thumb = thumb.replace('http://invidious:3000', 'http://localhost:1215')
-                    elif thumb.startswith('/'):
-                        thumb = f"http://localhost:1215{thumb}"
-                if not thumb:
-                    thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
+                thumb = normalize_thumb(item.get('videoId', ''), item.get('videoThumbnails', [{}])[0].get('url', ''))
 
                 videos.append({
                     "id": item.get('videoId'),
@@ -412,15 +400,7 @@ async def get_stream_proxy(v: str):
                 if 'videoId' not in item or 'title' not in item: continue
                 
                 thumbnails = item.get('videoThumbnails', [])
-                thumb = ''
-                if thumbnails:
-                    thumb = thumbnails[0].get('url', '')
-                    if 'invidious:3000' in thumb:
-                        thumb = thumb.replace('http://invidious:3000', 'http://localhost:1215')
-                    elif thumb.startswith('/'):
-                        thumb = f"http://localhost:1215{thumb}"
-                if not thumb:
-                    thumb = f"https://i.ytimg.com/vi/{item['videoId']}/hqdefault.jpg"
+                thumb = normalize_thumb(item.get('videoId', ''), thumbnails[0].get('url', '') if thumbnails else '')
                 
                 related.append({
                     "id": item['videoId'],
