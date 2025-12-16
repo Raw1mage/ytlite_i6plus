@@ -10,6 +10,7 @@ import google_auth_oauthlib.flow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleRequest
 
+import uuid
 app = FastAPI()
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -32,8 +33,46 @@ CLIENT_SECRETS_FILE = os.path.join(DATA_DIR, 'client_secret.json')
 if not os.path.exists(CLIENT_SECRETS_FILE):
      CLIENT_SECRETS_FILE = "client_secret.json"
 
-TOKEN_PATH = os.path.join(DATA_DIR, 'token.json')
-SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
+# TOKEN_PATH = os.path.join(DATA_DIR, 'token.json') # Removed for security: use session storage
+SCOPES = ["https://www.googleapis.com/auth/youtube.readonly", "https://www.googleapis.com/auth/youtube.force-ssl"]
+
+# Server-side Session Storage
+SESSION_DIR = os.path.join(DATA_DIR, 'sessions')
+if not os.path.exists(SESSION_DIR):
+    os.makedirs(SESSION_DIR, exist_ok=True)
+
+def save_creds_to_session(request: Request, creds):
+    session_id = request.session.get('user_session_id')
+    if not session_id:
+        session_id = str(uuid.uuid4())
+        request.session['user_session_id'] = session_id
+    
+    file_path = os.path.join(SESSION_DIR, f"{session_id}.json")
+    with open(file_path, 'w') as f:
+        f.write(creds.to_json())
+
+def get_creds_from_session(request: Request):
+    session_id = request.session.get('user_session_id')
+    if not session_id:
+        return None
+        
+    file_path = os.path.join(SESSION_DIR, f"{session_id}.json")
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'r') as f:
+                info = json.load(f)
+            return info
+        except Exception:
+            return None
+    return None
+
+def clear_session_creds(request: Request):
+    session_id = request.session.get('user_session_id')
+    if session_id:
+        file_path = os.path.join(SESSION_DIR, f"{session_id}.json")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    request.session.clear()
 
 # Setup
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -52,14 +91,17 @@ def normalize_thumb(video_id: str, thumb_url: str) -> str:
         return f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
     return thumb_url or f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
 
-def get_creds():
-    if os.path.exists(TOKEN_PATH):
+def get_creds(request: Request):
+    info = get_creds_from_session(request)
+    if info:
         try:
-            creds = Credentials.from_authorized_user_file(TOKEN_PATH, SCOPES)
+            creds = Credentials.from_authorized_user_info(info, SCOPES)
+            
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(GoogleRequest())
-                with open(TOKEN_PATH, 'w') as token:
-                    token.write(creds.to_json())
+                # Update session (file) with refreshed token
+                save_creds_to_session(request, creds)
+                
             return creds
         except Exception as e:
             print(f"Auth Error: {e}")
@@ -69,7 +111,7 @@ def get_creds():
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request, response: Response):
     # Force no-cache to prevent browser caching issues
-    creds = get_creds()
+    creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
     
     response = templates.TemplateResponse("index.html", {"request": request, "logged_in": logged_in})
@@ -101,7 +143,8 @@ async def login(request: Request):
     
     authorization_url, state = flow.authorization_url(
         access_type='offline',
-        include_granted_scopes='true')
+        include_granted_scopes='true',
+        prompt='consent')
     
     request.session['state'] = state
     request.session['redirect_uri'] = redirect_uri
@@ -127,8 +170,9 @@ async def oauth2callback(request: Request):
     creds = flow.credentials
     
     # Save credentials
-    with open(TOKEN_PATH, 'w') as token:
-        token.write(creds.to_json())
+    # Save credentials to session instead of file
+    # Save credentials to session file
+    save_creds_to_session(request, creds)
         
     return RedirectResponse("/")
 
@@ -139,9 +183,9 @@ import random
 
 @app.get("/logout")
 async def logout(request: Request):
-    if os.path.exists(TOKEN_PATH):
-        os.remove(TOKEN_PATH)
-    request.session.clear()
+    # if os.path.exists(TOKEN_PATH):
+    #     os.remove(TOKEN_PATH)
+    clear_session_creds(request)
     return RedirectResponse("/")
 
 from googleapiclient.discovery import build
@@ -170,20 +214,62 @@ def fetch_subscriptions_internal(creds, max_results=50):
         return []
 
 @app.get("/api/subscriptions")
-async def get_subscriptions():
-    creds = get_creds()
+async def get_subscriptions(request: Request):
+    creds = get_creds(request)
     if not creds or not creds.valid:
         return {"error": "Not logged in"}
     
     subs = fetch_subscriptions_internal(creds)
     return {"subscriptions": subs} # Return object to match frontend expectation
 
+import pydantic
+
+class SubscriptionAction(pydantic.BaseModel):
+    action: str
+    channelId: str
+
+@app.post("/api/subscription_action")
+async def subscription_action(request: Request, body: SubscriptionAction):
+    creds = get_creds(request)
+    if not creds or not creds.valid:
+        return {"error": "Not logged in"}
+    
+    try:
+        service = build('youtube', 'v3', credentials=creds)
+        if body.action == 'subscribe':
+            service.subscriptions().insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "resourceId": {
+                            "kind": "youtube#channel",
+                            "channelId": body.channelId
+                        }
+                    }
+                }
+            ).execute()
+        elif body.action == 'unsubscribe':
+            # Need to find subscription ID first
+            sub_list = service.subscriptions().list(
+                part="id",
+                mine=True,
+                forChannelId=body.channelId
+            ).execute()
+            
+            for item in sub_list.get('items', []):
+                service.subscriptions().delete(id=item['id']).execute()
+        
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Sub Action Error: {e}")
+        return {"error": str(e)}
+
 @app.get("/api/videos")
-async def get_videos(category: str = "all", pageToken: str = ""):
+async def get_videos(request: Request, category: str = "all", pageToken: str = ""):
     """
     Proxy request to Invidious API.
     """
-    creds = get_creds()
+    creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
     
     async with httpx.AsyncClient() as client:
@@ -281,7 +367,7 @@ async def get_videos(category: str = "all", pageToken: str = ""):
 
 @app.get("/search")
 async def search_page(request: Request, q: str):
-    creds = get_creds()
+    creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
     videos = []
     async with httpx.AsyncClient() as client:
@@ -321,7 +407,7 @@ async def channel_page(request: Request, c: str, name: str = ""):
       - c: channelId (Invidious authorId/YouTube channel ID)
       - name: optional channel title for display
     """
-    creds = get_creds()
+    creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
     return templates.TemplateResponse("channel.html", {"request": request, "channel_id": c, "channel_name": name, "logged_in": logged_in})
 

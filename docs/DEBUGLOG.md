@@ -103,3 +103,29 @@ Reverted `base.html` to the known stable state (approx Step 2502). This restored
 1.  **Revert**: Rollback `main.py` and `base.html` to previous state. (DONE)
 2.  **Recover**: Hard restart Docker containers (`docker-compose down && up`) to fix the mount/DB issue.
 3.  **Retry Check**: Verify app is working (displaying videos) before attempting fixes again.
+
+## 2025-12-17：Critical Auth Vulnerability - Shared Session & Cookie Overflow (✅)
+- **症狀**：
+    1. 不同使用者登入後，竟然共用同一個 Google 帳號的 Token（A用戶登入後，B用戶瀏覽時變成A用戶）。
+    2. 使用者回報「登出後再也登不進」。
+    3. 登入後後端報錯 `Auth Error: missing fields refresh_token`。
+- **原因**：
+    1. **全域狀態共享（初次修復）**：後端將 OAuth Token 寫入單一全域檔案 `token.json`。
+    2. **Cookie 大小限制**：Session Cookie 超過 4KB，導致登入驗證後瀏覽器無法儲存 Session。
+    3. **Missing Refresh Token**：導入伺服器端 Session 後，由於使用者已授權過，Google 預設不回傳 `refresh_token`。但後端 `Credentials` 初始化時嚴格要求此欄位，導致讀取 Session 檔案時驗證失敗。
+- **處置**：
+    - **導入伺服器端 Session 儲存**：建立 `data/sessions/` 目錄，將憑證內容儲存於伺服器端 JSON 檔案，Cookie 僅儲存 `user_session_id`。
+    - **強制 Refresh Token**：在 `flow.authorization_url` 加入 `prompt='consent'` 参数，強制 Google 每次登入都回傳 Refresh Token，確保憑證完整性。
+- **結果**：解決了登入失敗與共用帳號問題，並確保了完整的 OAuth 憑證以利後續 Token 刷新。
+
+## 2025-12-17：Missing Subscription Write Access & Import Error (✅)
+- **症狀**：
+    1. 使用者回報點擊「訂閱」按鈕後，側邊選單（Drawer）的訂閱列表沒有更新。
+    2. 後端出現 `NameError: name 'pydantic' is not defined` 導致崩潰。
+- **原因**：
+    1. **API/Permission 缺失**：後端未實作訂閱 API (`/api/subscription_action`)，且 OAuth Scope 缺少寫入權限。
+    2. **Import 順序錯誤**：在實作 API 時，Python 的 import 語句被放置在類別定義之後，導致解析類別時找不到模組。
+- **處置**：
+    - **更新 Scope**：新增 `https://www.googleapis.com/auth/youtube.force-ssl` 權限。
+    - **實作後端 API**：在 `main.py` 新增 `/api/subscription_action`。
+    - **修正 Import**：將 `import pydantic` 移至正確位置（類別定義之前），修復啟動錯誤。
