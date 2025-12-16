@@ -737,8 +737,9 @@
                 const data = await res.json();
                 const list = document.getElementById('drawer-subs-list');
                 list.innerHTML = '';
-                if (Array.isArray(data) && data.length > 0) {
-                    data.forEach(sub => {
+                const subs = Array.isArray(data) ? data : data.subscriptions;
+                if (Array.isArray(subs) && subs.length > 0) {
+                    subs.forEach(sub => {
                         const safeTitle = sub.title.replace(/'/g, "\\'");
                         const div = document.createElement('div');
                         div.className = 'drawer-item';

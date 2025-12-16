@@ -2,6 +2,11 @@
 
 本檔彙總近期除錯重點；完整長文請見 `docs/HISTORY/DEBUG_LOG.md`。
 
+## 2025-12-16：Drawer 訂閱列表顯示空白（✅）
+- **症狀**：側邊抽屜「訂閱內容」顯示 `No subscriptions found.`，即使已登入且後端回傳訂閱清單。
+- **原因**：前端僅處理純陣列回傳，未解析 `/api/subscriptions` 的 `{ subscriptions: [...] }` 物件。
+- **處置**：前端改為優先取 `data.subscriptions`；若本身為陣列則沿用。
+
 ## 2025-12-14：v3 重構—影片清單與播放（✅）
 - **Session ID**：2025-12-14_v3_refactor（21:45 UTC+8）
 - **狀態**：成功
