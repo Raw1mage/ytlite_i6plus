@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="padding: 20px; max-width: 800px; margin: 0 auto;">
+    <h2 style="margin-bottom: 20px; color: #fff;">{{ title }}</h2>
+
+    {% if items %}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        {% for item in items %}
+        <div class="manage-card"
+            style="display: flex; align-items: center; background: #1e1e1e; padding: 15px; border-radius: 8px;">
+            {% if item.thumbnail %}
+            <img src="{{ item.thumbnail }}"
+                style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; margin-right: 15px;">
+            {% else %}
+            <div style="width: 50px; height: 50px; border-radius: 50%; background: #333; margin-right: 15px;"></div>
+            {% endif %}
+
+            <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 16px;">{{ item.title }}</div>
+                {% if item.channelId %}
+                <div style="font-size: 12px; color: #aaa; margin-top: 4px;">{{ item.channelId }}</div>
+                {% endif %}
+            </div>
+
+            <div class="actions">
+                {% if view_type == 'subscriptions' %}
+                <button onclick="toggleSubscription('{{ item.channelId }}', this)"
+                    style="padding: 8px 16px; border-radius: 18px; border: none; background: #333; color: #aaa; font-weight: 600; cursor: pointer;">
+                    已訂閱
+                </button>
+                {% elif view_type == 'blocked' %}
+                <button onclick="toggleBlock('{{ item.channelId }}', '{{ item.title|replace("'", "\\'") }}', this)"
+                    style="padding: 8px 16px; border-radius: 18px; border: none; background: #333; color: #aaa; font-weight: 600; cursor: pointer;">
+                    解除封鎖
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: #777;">
+        目前沒有{{ title }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

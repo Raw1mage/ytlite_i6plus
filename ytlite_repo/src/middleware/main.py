@@ -41,6 +41,56 @@ SESSION_DIR = os.path.join(DATA_DIR, 'sessions')
 if not os.path.exists(SESSION_DIR):
     os.makedirs(SESSION_DIR, exist_ok=True)
 
+# User Data Storage (Blocked Channels, etc.)
+USERS_DIR = os.path.join(DATA_DIR, 'users')
+if not os.path.exists(USERS_DIR):
+    os.makedirs(USERS_DIR, exist_ok=True)
+
+def get_user_id(request: Request, creds):
+    """
+    Get stable User ID (My Channel ID) using cached session or API.
+    """
+    uid = request.session.get('user_youtube_id')
+    if uid:
+        return uid
+    
+    if not creds or not creds.valid:
+        return None
+        
+    try:
+        service = build('youtube', 'v3', credentials=creds)
+        # Fetch 'mine' channel
+        response = service.channels().list(part='id', mine=True).execute()
+        items = response.get('items', [])
+        if items:
+            uid = items[0]['id']
+            request.session['user_youtube_id'] = uid
+            return uid
+    except Exception as e:
+        print(f"Failed to get user ID: {e}")
+    return None
+
+def get_user_blocklist(user_id):
+    if not user_id: return {}
+    path = os.path.join(USERS_DIR, f"{user_id}_blocked.json")
+    if os.path.exists(path):
+        try:
+            with open(path, 'r') as f:
+                return json.load(f) # {channel_id: channel_name}
+        except:
+            return {}
+    return {}
+
+def save_user_blocklist(user_id, data):
+    if not user_id: return
+    path = os.path.join(USERS_DIR, f"{user_id}_blocked.json")
+    with open(path, 'w') as f:
+        json.dump(data, f)
+
+def filter_blocked(videos, blocklist):
+    if not blocklist: return videos
+    return [v for v in videos if v.get('channel_id') not in blocklist]
+
 def save_creds_to_session(request: Request, creds):
     session_id = request.session.get('user_session_id')
     if not session_id:
@@ -98,14 +148,20 @@ def get_creds(request: Request):
             creds = Credentials.from_authorized_user_info(info, SCOPES)
             
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(GoogleRequest())
-                # Update session (file) with refreshed token
-                save_creds_to_session(request, creds)
-                
+                print(f"[Auth] Access token expired, refreshing... (Session ID: {request.session.get('user_session_id')})")
+                try:
+                    creds.refresh(GoogleRequest())
+                    save_creds_to_session(request, creds)
+                    print("[Auth] Refresh successful")
+                except Exception as refresh_err:
+                    print(f"[Auth] Refresh FAILED: {refresh_err}")
+                    return None
+            
             return creds
         except Exception as e:
-            print(f"Auth Error: {e}")
+            print(f"Auth Error in get_creds: {e}")
             return None
+    # print(f"[Auth] No session info found. ID: {request.session.get('user_session_id')}")
     return None
 
 @app.get("/", response_class=HTMLResponse)
@@ -264,6 +320,37 @@ async def subscription_action(request: Request, body: SubscriptionAction):
         print(f"Sub Action Error: {e}")
         return {"error": str(e)}
 
+class BlockAction(pydantic.BaseModel):
+    action: str # 'block' or 'unblock'
+    channelId: str
+    channelName: str = ""
+
+@app.post("/api/block_channel")
+async def block_channel(request: Request, body: BlockAction):
+    creds = get_creds(request)
+    if not creds: return {"error": "Not logged in"}
+    
+    user_id = get_user_id(request, creds)
+    if not user_id: return {"error": "Could not identify user"}
+    
+    blocklist = get_user_blocklist(user_id)
+    
+    if body.action == 'block':
+        blocklist[body.channelId] = body.channelName or "Unknown"
+    elif body.action == 'unblock':
+        if body.channelId in blocklist:
+            del blocklist[body.channelId]
+            
+    save_user_blocklist(user_id, blocklist)
+    return {"status": "success", "blocked": blocklist}
+
+@app.get("/api/blocked_channels")
+async def get_blocked_channels(request: Request):
+    creds = get_creds(request)
+    if not creds: return {"error": "Not logged in"}
+    user_id = get_user_id(request, creds)
+    return get_user_blocklist(user_id)
+
 @app.get("/api/videos")
 async def get_videos(request: Request, category: str = "all", pageToken: str = ""):
     """
@@ -272,16 +359,26 @@ async def get_videos(request: Request, category: str = "all", pageToken: str = "
     creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
     
+    # Load Blocklist
+    blocklist = {}
+    if logged_in:
+        user_id = get_user_id(request, creds)
+        blocklist = get_user_blocklist(user_id)
+    
+    print(f"[get_videos] category={category}, logged_in={logged_in}, pageToken={pageToken}, blocked_count={len(blocklist)}")
+
     async with httpx.AsyncClient() as client:
         try:
             # PERSONALIZED FEED LOGIC
             feed_videos = []
-            if category == 'all' and logged_in and not pageToken:
+            
+            # If Logged In + Category All -> SHOW ONLY SUBSCRIPTIONS (Random Shuffle Feed)
+            if category == 'all' and logged_in:
                 # 1. Get Subscriptions
                 subs = fetch_subscriptions_internal(creds, max_results=50)
                 if subs:
-                    # 2. Pick Random 3-5 Channels
-                    targets = random.sample(subs, k=min(len(subs), 5))
+                    # 2. Pick Random 10 Channels (Increased from 5 for better feed)
+                    targets = random.sample(subs, k=min(len(subs), 10))
                     
                     # 3. Fetch Latest Videos Concurrently
                     tasks = []
@@ -298,54 +395,102 @@ async def get_videos(request: Request, category: str = "all", pageToken: str = "
                             author_id = data.get('authorId', '')
                             
                             for item in data.get('latestVideos', [])[:5]: # Top 5 per channel
-                                # ... helper to process thumbnail ...
-                                thumb = normalize_thumb(item.get('videoId', ''), item.get('videoThumbnails', [{}])[0].get('url', ''))
-                                
-                                feed_videos.append({
-                                    "id": item['videoId'],
-                                    "title": item['title'],
-                                    "uploader": author_name,
-                                    "channel_id": author_id,
-                                    "thumbnail": thumb,
-                                    "view_count": item.get('viewCount', 0),
-                                    "published": item.get('published', 0) # For sorting
-                                })
+                                # Block Check
+                                if item.get('authorId') in blocklist: continue
 
-            # EXISTING SEARCH LOGIC
-            if category == 'all':
-                url = f"{INVIDIOUS_API_URL}/api/v1/search?q=台灣+熱門&sort_by=relevance&type=video"
-            elif category == 'news':
-                url = f"{INVIDIOUS_API_URL}/api/v1/search?q=台灣新聞&sort_by=upload_date&type=video"
-            elif category == 'live':
-                url = f"{INVIDIOUS_API_URL}/api/v1/search?q=台灣+直播&features=live&type=video"
-            elif category == 'podcast':
-                url = f"{INVIDIOUS_API_URL}/api/v1/search?q=中文+podcast&type=video"
-            else:
-                url = f"{INVIDIOUS_API_URL}/api/v1/search?q={category}&type=video"
+                                try:
+                                    if 'videoId' not in item: continue
+                                    
+                                    # ... helper to process thumbnail ...
+                                    thumb = normalize_thumb(item.get('videoId', ''), item.get('videoThumbnails', [{}])[0].get('url', ''))
+                                    
+                                    feed_videos.append({
+                                        "id": item.get('videoId'),
+                                        "title": item.get('title', 'Untitled'),
+                                        "uploader": author_name,
+                                        "channel_id": author_id,
+                                        "thumbnail": thumb,
+                                        "view_count": item.get('viewCount', 0),
+                                        "published": item.get('published', 0) # For sorting
+                                    })
+                                except Exception as e:
+                                    print(f"Error parsing feed item: {e}")
+                                    continue
             
-            if pageToken:
-                url += f"&page={pageToken}"
-            
-            resp = await client.get(url)
-            data = resp.json()
-            
+            # PUBLIC SEARCH LOGIC (Only if NOT (all + logged_in))
             search_videos = []
-            if isinstance(data, list):
-                for item in data:
-                     if 'videoId' not in item or 'title' not in item: continue
-                     
-                     # ... same thumb logic ...
-                     thumbnails = item.get('videoThumbnails', [])
-                     thumb = normalize_thumb(item.get('videoId', ''), thumbnails[0].get('url', '') if thumbnails else '')
+            run_search = True
+            
+            if category == 'all' and logged_in:
+                run_search = False
+                
+            if run_search:
+                url = ""
+                if category == 'all':
+                    url = f"{INVIDIOUS_API_URL}/api/v1/search?q=台灣+熱門&sort_by=relevance&type=video"
+                else:
+                    # Generic Search / Custom Nav
+                    # Default to treating category as a search query
+                    nav_query = category
+                    sort_by = "relevance"
+                    features = ""
+                    
+                    if logged_in:
+                        user_id = get_user_id(request, creds)
+                        nav_items = get_user_nav(user_id)
+                        for item in nav_items:
+                            if item['id'] == category:
+                                nav_query = item['query']
+                                # Basic heuristic for sort/features based on query keywords if needed, 
+                                # but for now let's just use the query. 
+                                # If users want "Live", they should put "Live" in the query or we can add settings later.
+                                # For legacy default IDs, we might want to preserve behavior IF they haven't been customized,
+                                # but get_user_nav returns the objects with "query" inside them.
+                                # The default objects have: query="台灣新聞", query="台灣直播", etc.
+                                # So simply using the query from the object is correct.
+                                break
 
-                     search_videos.append({
-                        "id": item['videoId'],
-                        "title": item['title'],
-                        "uploader": item.get('author', 'Unknown'),
-                        "channel_id": item.get('authorId', ''),
-                        "thumbnail": thumb,
-                        "view_count": item.get('viewCount', 0)
-                    })
+                    # Construct URL
+                    # Note: We might want to handle 'live' feature if query contains '直播' or 'live', 
+                    # but Invidious search usually handles 'features=live' separately.
+                    # For now, simplistic approach:
+                    url = f"{INVIDIOUS_API_URL}/api/v1/search?q={nav_query}&type=video"
+                    
+                    # Special handling for legacy defaults if they are still using original queries?
+                    # No, the goal is FULL customization.
+                    # However, "Live" usually needs `&features=live` to be strictly live.
+                    # If the user sets query "game live", they might expect live streams.
+                    # Adding a simple check:
+                    if "直播" in nav_query or "live" in nav_query.lower():
+                         url += "&features=live"
+                    if "新聞" in nav_query or "news" in nav_query.lower():
+                         url += "&sort_by=upload_date" # News usually necessitates recency
+            
+                if pageToken:
+                    url += f"&page={pageToken}"
+                
+                resp = await client.get(url)
+                data = resp.json()
+                
+                if isinstance(data, list):
+                    for item in data:
+                         if 'videoId' not in item or 'title' not in item: continue
+                         
+                         # Block Check
+                         if item.get('authorId') in blocklist: continue
+
+                         # ... same thumb logic ...
+                         thumbnails = item.get('videoThumbnails', [])
+                         thumb = normalize_thumb(item.get('videoId', ''), thumbnails[0].get('url', '') if thumbnails else '')
+
+                         search_videos.append({
+                            "id": item['videoId'],
+                            "title": item['title'],
+                            "uploader": item.get('author', 'Unknown'),
+                            "channel_id": item.get('authorId', ''),
+                            "thumbnail": thumb,
+                            "view_count": item.get('viewCount', 0)
+                        })
 
             # MERGE & SHUFFLE
             # If we have feed videos, show them first, mixed with some popular ones
@@ -369,6 +514,12 @@ async def get_videos(request: Request, category: str = "all", pageToken: str = "
 async def search_page(request: Request, q: str):
     creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
+    
+    blocklist = {}
+    if logged_in:
+        user_id = get_user_id(request, creds)
+        blocklist = get_user_blocklist(user_id)
+
     videos = []
     async with httpx.AsyncClient() as client:
         try:
@@ -381,6 +532,10 @@ async def search_page(request: Request, q: str):
             for item in data:
                 if 'videoId' not in item or 'title' not in item:
                     continue
+                
+                # Block Check
+                if item.get('authorId') in blocklist: continue
+
                 thumbnails = item.get('videoThumbnails', [])
                 thumb = normalize_thumb(item.get('videoId', ''), thumbnails[0].get('url', '') if thumbnails else '')
 
@@ -447,10 +602,16 @@ async def channel_videos(channelId: str):
             return {"videos": [], "error": str(e)}
 
 @app.get("/api/get_stream")
-async def get_stream_proxy(v: str):
+async def get_stream_proxy(request: Request, v: str):
     """
     Fetch video details from Invidious and return the best stream URL.
     """
+    creds = get_creds(request)
+    blocklist = {}
+    if creds:
+        user_id = get_user_id(request, creds)
+        blocklist = get_user_blocklist(user_id)
+
     async with httpx.AsyncClient() as client:
         try:
             url = f"{INVIDIOUS_API_URL}/api/v1/videos/{v}"
@@ -482,8 +643,12 @@ async def get_stream_proxy(v: str):
 
             # Related Videos
             related = []
+            
             for item in data.get('recommendedVideos', []):
                 if 'videoId' not in item or 'title' not in item: continue
+                
+                # Block Check
+                if item.get('authorId') in blocklist: continue
                 
                 thumbnails = item.get('videoThumbnails', [])
                 thumb = normalize_thumb(item.get('videoId', ''), thumbnails[0].get('url', '') if thumbnails else '')
@@ -509,3 +674,107 @@ async def get_stream_proxy(v: str):
 
         except Exception as e:
             return {"error": str(e)}
+
+@app.get("/manage/subscriptions", response_class=HTMLResponse)
+async def manage_subscriptions(request: Request):
+    creds = get_creds(request)
+    if not creds or not creds.valid:
+        return RedirectResponse("/login")
+    
+    logged_in = True
+    subs = fetch_subscriptions_internal(creds, max_results=200) # Fetch more for manager
+    
+    items = []
+    if subs:
+        items = subs # Already in correct format: {title, channelId, thumbnail}
+        
+    return templates.TemplateResponse("manager.html", {
+        "request": request, 
+        "logged_in": logged_in,
+        "title": "訂閱管理",
+        "view_type": "subscriptions",
+        "items": items
+    })
+
+@app.get("/manage/blocked", response_class=HTMLResponse)
+async def manage_blocked(request: Request):
+    creds = get_creds(request)
+    if not creds or not creds.valid:
+        return RedirectResponse("/login")
+    
+    logged_in = True
+    user_id = get_user_id(request, creds)
+    blocklist = get_user_blocklist(user_id) # {id: name}
+    
+    items = []
+    for cid, name in blocklist.items():
+        items.append({
+            "title": name,
+            "channelId": cid,
+            "thumbnail": "" # No thumb stored for blocks
+        })
+        
+    return templates.TemplateResponse("manager.html", {
+        "request": request, 
+        "logged_in": logged_in,
+        "title": "封鎖管理",
+        "view_type": "blocked",
+        "items": items
+    })
+
+# --- Navigation Management ---
+
+def get_user_nav(user_id):
+    path = os.path.join(DATA_DIR, 'users', f"{user_id}_nav.json")
+    if os.path.exists(path):
+        try:
+            with open(path, 'r') as f:
+                return json.load(f)
+        except:
+            return []
+    
+    # Default Nav
+    return [
+        {"id": "news", "title": "新聞", "query": "台灣新聞", "is_fixed": False},
+        {"id": "live", "title": "直播", "query": "台灣直播", "is_fixed": False},
+        {"id": "podcast", "title": "Podcast", "query": "Podcast", "is_fixed": False}
+    ]
+
+def save_user_nav(user_id, nav_items):
+    path = os.path.join(DATA_DIR, 'users', f"{user_id}_nav.json")
+    with open(path, 'w') as f:
+        json.dump(nav_items, f)
+
+class NavUpdate(pydantic.BaseModel):
+    items: list
+
+@app.get("/api/nav")
+def get_nav(request: Request):
+    creds = get_creds(request)
+    if not creds: return []
+    user_id = get_user_id(request, creds)
+    return get_user_nav(user_id)
+
+@app.post("/api/nav")
+async def update_nav(request: Request, body: NavUpdate):
+    creds = get_creds(request)
+    if not creds: return {"error": "Not logged in"}
+    user_id = get_user_id(request, creds)
+    save_user_nav(user_id, body.items)
+    return {"status": "success"}
+
+@app.get("/manage/nav", response_class=HTMLResponse)
+async def manage_nav(request: Request):
+    creds = get_creds(request)
+    if not creds or not creds.valid:
+        return RedirectResponse("/login")
+    
+    logged_in = True
+    user_id = get_user_id(request, creds)
+    items = get_user_nav(user_id)
+    
+    return templates.TemplateResponse("nav_manager.html", {
+        "request": request,
+        "logged_in": logged_in,
+        "items": items
+    })

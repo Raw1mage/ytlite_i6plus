@@ -248,7 +248,8 @@
 <body>
     <!-- ... -->
     <header>
-        <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
+        <!-- Left: Ham + Logo -->
+        <div style="display: flex; align-items: center; gap: 15px; flex-shrink: 0; margin-right: 15px;">
             <button class="hamburger-btn" onclick="toggleDrawer()">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                     <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
@@ -257,18 +258,17 @@
             <a href="/" class="brand">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_Logo_2017.svg" alt="YT">
             </a>
-
-            {% if logged_in %}
-            <!-- Category chips moved here from index.html -->
-            <div class="chips-container" style="margin: 0; padding: 0; flex: 1; max-width: 600px;">
-                <div class="chip active" onclick="loadCategory('all', this)">全部</div>
-                <div class="chip" onclick="loadCategory('news', this)">新聞</div>
-                <div class="chip" onclick="loadCategory('live', this)">直播</div>
-                <div class="chip" onclick="loadCategory('podcast', this)">Podcast</div>
-                <div class="chip" onclick="loadCategory('history', this)">觀看歷史</div>
-            </div>
-            {% endif %}
         </div>
+
+        {% if logged_in %}
+        <!-- Middle: Nav Chips -->
+        <div class="chips-container" id="nav-chips"
+            style="margin: 0 15px 0 0; padding: 0; display: none; overflow-x: auto; align-items: center; gap: 8px; max-width: 40%; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none;">
+            <div class="chip active" onclick="loadCategory('all', this)" style="flex-shrink: 0;">全部</div>
+            <span id="dynamic-chips" style="display: flex; gap: 8px;"></span>
+            <div class="chip" onclick="loadCategory('history', this)" style="flex-shrink: 0;">觀看歷史</div>
+        </div>
+        {% endif %}
 
         {% if logged_in %}
         <form action="/search" method="get" class="header-search">
@@ -321,8 +321,18 @@
             </a>
             {% else %}
             <a href="/login" class="drawer-item">Login</a>
+            <a href="/login" class="drawer-item">Login</a>
             {% endif %}
         </div>
+
+        {% if logged_in %}
+        <div class="drawer-section">
+            <div class="drawer-label">管理</div>
+            <a href="/manage/subscriptions" class="drawer-item" onclick="closeDrawer()">訂閱管理</a>
+            <a href="/manage/blocked" class="drawer-item" onclick="closeDrawer()">封鎖管理</a>
+            <a href="/manage/nav" class="drawer-item" onclick="closeDrawer()">導覽管理</a>
+        </div>
+        {% endif %}
 
         {% if logged_in %}
         <div class="drawer-section">
@@ -342,7 +352,51 @@
                 var btn = document.querySelector('.mic-btn');
                 if (btn) btn.style.display = 'none';
             }
+            // Auto fetch subs, blocklist, and nav if logged in
+            {% if logged_in %}
+            fetchSubscriptions();
+            fetchBlockedChannels();
+            fetchNavItems();
+            {% endif %}
         });
+
+        // --- Nav Customization Logic ---
+        async function fetchNavItems() {
+            try {
+                const res = await fetch('/api/nav');
+                const items = await res.json();
+                const container = document.getElementById('dynamic-chips');
+                const wrapper = document.getElementById('nav-chips');
+
+                // Defaults if empty (though backend handles default, but just in case)
+                if (!items || items.length === 0) {
+                    // Fallback chips if fetch fails or empty
+                    // But backend guarantees list. 
+                }
+
+                items.forEach(item => {
+                    const chip = document.createElement('div');
+                    chip.className = 'chip';
+                    chip.innerText = item.title;
+                    chip.onclick = function () { loadCategory(item.id, this); };
+
+                    // Hack: Map ID to Query for search
+                    // If ID is not 'news', 'live', 'podcast' (legacy), we need to store the query somewhere.
+                    // But `loadCategory` just sets the category param. `main.py` needs to know what 'nav-123' means.
+                    // Wait, `loadCategory` in index.html sends `category=ID` to `/api/videos?category=ID`.
+                    // Backend `get_videos` checks `category`.
+                    // The backend `get_videos` only knows specific categories OR search query.
+                    // IF `category` is a nav ID, the Backend `get_videos` doesn't know the query!
+                    // FIX: `loadCategory` logic in `index.html` needs to handle custom queries OR pass the query to backend.
+                    // ALTERNATIVE: Backend `get_videos` reads user's nav config to find the query for the given category ID.
+
+                    container.appendChild(chip);
+                });
+
+                if (wrapper) wrapper.style.display = 'flex';
+
+            } catch (e) { console.error('Nav fetch error', e); }
+        }
 
         function startDictation() {
             if (window.webkitSpeechRecognition || window.SpeechRecognition) {
@@ -710,6 +764,8 @@
     <script>
         // Global State
         window.isMinimized = false;
+        window.userSubscriptions = [];
+        window.userBlocklist = {}; // {id: name}
 
         // --- Drawer Logic ---
         function toggleDrawer() {
@@ -738,6 +794,9 @@
                 const list = document.getElementById('drawer-subs-list');
                 list.innerHTML = '';
                 const subs = Array.isArray(data) ? data : data.subscriptions;
+                // Update global cache
+                window.userSubscriptions = subs || [];
+
                 if (Array.isArray(subs) && subs.length > 0) {
                     subs.forEach(sub => {
                         const safeTitle = sub.title.replace(/'/g, "\\'");
@@ -780,6 +839,58 @@
                 btn.style.color = originalText === '訂閱' ? '#fff' : '#aaa';
             }
         }
+
+        // --- Block Logic ---
+        async function fetchBlockedChannels() {
+            try {
+                const res = await fetch('/api/blocked_channels');
+                if (res.status === 401) return;
+                window.userBlocklist = await res.json();
+            } catch (e) { console.error('Blocklist error', e); }
+        }
+
+        async function toggleBlock(channelId, channelName, btn) {
+            if (!channelId) return;
+            // Determine action based on current state (or button text if provided)
+            const isBlocked = window.userBlocklist[channelId] !== undefined;
+            const action = isBlocked ? 'unblock' : 'block';
+
+            try {
+                const res = await fetch('/api/block_channel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action, channelId: channelId, channelName: channelName })
+                });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+
+                // Update local cache
+                if (data.blocked) window.userBlocklist = data.blocked;
+
+                // Update UI if button passed
+                if (btn) {
+                    if (action === 'block') {
+                        btn.innerText = '已封鎖';
+                        btn.style.background = '#333';
+                    } else {
+                        btn.innerText = '封鎖';
+                        btn.style.background = '#e62117'; // Red? Or grey? Let's use red for Action
+                    }
+                }
+
+                // If in manager, refresh
+                const manager = document.getElementById('manager-overlay');
+                if (manager && manager.style.display === 'block') {
+                    openManager('blocked');
+                }
+
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        // --- Manager UI (Deprecated - Server Side Rendered now) ---
+        // function openManager(type) { ... }
 
         // --- Channel & Nav Logic ---
         function loadCategory(cat, btn) {
@@ -1034,13 +1145,25 @@
                     const channelId = data.info.channel_id;
                     const safeUploaderJs = video.uploader.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
+                    // Check subscription status
+                    const isSubscribed = window.userSubscriptions.some(sub => sub.channelId === channelId);
+                    const subText = isSubscribed ? '已訂閱' : '訂閱';
+                    const subBg = isSubscribed ? '#333' : '#cc0000';
+                    const subColor = isSubscribed ? '#aaa' : '#fff';
+
+                    // Check block status
+                    const isBlocked = window.userBlocklist[channelId] !== undefined;
+                    const blockText = isBlocked ? '已封鎖' : '封鎖';
+                    const blockBg = isBlocked ? '#333' : '#222'; // Subtle for block
+
                     metaFn.innerHTML = `
                     <div style="display:flex; align-items:center;">
                         <div style="flex:1;">
                             <div onclick="loadChannel('${safeUploaderJs}','${channelId}')" style="color: #3ea6ff; font-weight: bold; font-size: 15px; padding: 5px 0; cursor: pointer; display: inline-block;">${video.uploader}</div>
                             <span style="color:#aaa; font-size:12px;">${viewText}</span>
                         </div>
-                        <button onclick="toggleSubscription('${channelId}', this)" style="padding:6px 12px; font-size:12px; background:#cc0000; color:white; margin-left:10px; border:none; border-radius:15px;">訂閱</button>
+                        <button onclick="toggleBlock('${channelId}', '${safeUploaderJs}', this)" style="padding:6px 12px; font-size:12px; background:${blockBg}; color:#fff; border:1px solid #444; border-radius:15px; margin-right:5px;">${blockText}</button>
+                        <button onclick="toggleSubscription('${channelId}', this)" style="padding:6px 12px; font-size:12px; background:${subBg}; color:${subColor}; border:none; border-radius:15px;">${subText}</button>
                     </div>
                  `;
                 }

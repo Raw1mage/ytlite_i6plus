@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="padding: 20px; max-width: 800px; margin: 0 auto;">
+    <h2 style="margin-bottom: 20px; color: #fff;">自訂導覽列</h2>
+
+    <div style="background: #1e1e1e; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <div style="margin-bottom: 15px; color: #aaa; font-size: 14px;">
+            設定首頁上方的快捷按鈕。您可以修改標題和對應的搜尋關鍵字。
+        </div>
+
+        <div id="nav-list">
+            <!-- Items injected via JS -->
+        </div>
+
+        <button onclick="addNavItem()"
+            style="margin-top: 15px; background: #333; width: 100%; border: 1px dashed #555; padding: 10px;">
+            + 新增按鈕
+        </button>
+
+        <div style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button onclick="saveNav()" style="background: #cc0000; color: #fff;">儲存設定</button>
+        </div>
+    </div>
+</div>
+
+<template id="nav-item-template">
+    <div class="nav-item-row"
+        style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center; background: #2a2a2a; padding: 10px; border-radius: 4px;">
+        <div style="flex:1;">
+            <div style="font-size: 12px; color: #aaa; margin-bottom: 4px;">按鈕名稱</div>
+            <input type="text" class="nav-title"
+                style="width: 100%; background: #121212; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px;"
+                placeholder="例如: 新聞">
+        </div>
+        <div style="flex:2;">
+            <div style="font-size: 12px; color: #aaa; margin-bottom: 4px;">搜尋關鍵字</div>
+            <input type="text" class="nav-query"
+                style="width: 100%; background: #121212; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px;"
+                placeholder="例如: 台灣新聞">
+        </div>
+        <button onclick="removeNavItem(this)"
+            style="background: transparent; color: #aaa; border: none; font-size: 20px; padding: 0 10px;">&times;</button>
+    </div>
+</template>
+
+<script>
+    let navItems = {{ items | tojson }};
+
+    function renderNav() {
+        const list = document.getElementById('nav-list');
+        list.innerHTML = '';
+        const tmpl = document.getElementById('nav-item-template').content;
+
+        navItems.forEach((item, index) => {
+            const clone = document.importNode(tmpl, true);
+            clone.querySelector('.nav-title').value = item.title;
+            clone.querySelector('.nav-title').oninput = (e) => navItems[index].title = e.target.value;
+
+            clone.querySelector('.nav-query').value = item.query;
+            clone.querySelector('.nav-query').oninput = (e) => navItems[index].query = e.target.value;
+
+            clone.querySelector('button').onclick = () => {
+                navItems.splice(index, 1);
+                renderNav();
+            };
+
+            list.appendChild(clone);
+        });
+    }
+
+    function addNavItem() {
+        navItems.push({ id: Date.now().toString(), title: '新按鈕', query: '', is_fixed: false });
+        renderNav();
+    }
+
+    async function saveNav() {
+        try {
+            const res = await fetch('/api/nav', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: navItems })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            alert('設定已儲存');
+        } catch (e) {
+            alert('儲存失敗: ' + e.message);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', renderNav);
+</script>
+{% endblock %}
