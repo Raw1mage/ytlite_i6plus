@@ -10,7 +10,7 @@
 - **播放策略**：以 YouTube iframe 為主，避免直抓串流不穩。
 
 ## 快速啟動（開發）
-1. 進入中介層專案：`cd ytlite_repo`
+1. 進入中介層專案：`cd webbox`
 2. 建立虛擬環境並安裝依賴：
    ```bash
    python3 -m venv .venv

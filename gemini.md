@@ -26,7 +26,7 @@
 - **內容**：架構、安裝、使用方式與其他文件連結。
 
 ## 作業流程
-1. **主要程式位置**：現階段主力在 PC/WSL `ytlite_repo`；若於手機端維護，放在 `/var/mobile/Documents/yt_lite` 並確保 Git 追蹤。
+1. **主要程式位置**：現階段主力在 PC/WSL `webbox`；若於手機端維護，放在 `/var/mobile/Documents/yt_lite` 並確保 Git 追蹤。
 2. **版本控管**：所有變更都以 Git 管理，保持 commit 清晰。
 3. **遠端控制**：透過 SSH 操作裝置；如需 root 權限，先確認安全性。
 
