@@ -28,20 +28,28 @@
 5. Safari 開啟 `http://<主機 IP>:1214`，加入主畫面即可全螢幕使用。
 
 ## 核心功能
-- 繁體中文介面與搜尋關鍵字
-- OAuth2 登入/登出與訂閱同步（需自備 `client_secret.json` 放在 `ytlite_repo/BUILD/data` 或 `src/middleware` 執行路徑）
-- 影片清單與縮圖修正（外部可存取 URL）
-- 全螢幕/迷你播放器，iframe 播放回退機制
-- 分類快速切換（全部、新聞、直播、Podcast、觀看歷史）
+- **繁體中文介面**：針對台灣使用者優化的搜尋關鍵字與介面。
+- **OAuth2 登入與訂閱同步**：支援 Google 帳號登入，自動同步 YouTube 訂閱頻道至側邊欄 (Drawer)。
+- **混合訂閱 Feed**：首頁「全部」分頁會自動混合訂閱頻道的最新影片。
+- **高度客製化**：
+    - **自訂導覽 Chips**：可於「導覽管理」頁面新增、編輯首頁上方的快速分類按鈕。
+    - **封鎖管理**：可封鎖不想看到的頻道，過濾首頁與搜尋結果。
+- **播放體驗**：全螢幕/迷你播放器，採用 YouTube iframe 確保播放穩定性，支援 iOS 背景播放（視系統版本而定）。
+- **輕量化架構**：針對舊款 iPhone 6 Plus (iOS 12) 優化，減少不必要的 JS 運算。
+
+## 文件維護指南
+- **計畫/進度**：功能開發前後請更新 `docs/PLAN.md` 與 `docs/PROGRESS.md`。
+- **除錯紀錄**：遇到問題請記錄於 `docs/DEBUGLOG.md`，長篇分析放入 `docs/HISTORY/`。
+- **架構變更**：若有新增服務或改變流程，請同步更新 `ARCHITECTURE.md`。
 
 ## 目前風險與限制
-- Invidious 偶有 metadata 失敗，標題/作者可能顯示「Loading...」，但播放不受影響。
-- YouTube API 配額限制會影響訂閱同步。
-- 舊款裝置效能有限，請避免同時執行重負載任務。
+- **Invidious 依賴**：Metadata（標題/圖片）依賴 Invidious 實例，若實例不穩可能導致部分資訊載入失敗（顯示 Loading），但不影響 iframe 播放。
+- **YouTube API 配額**：訂閱同步使用官方 API，受限於每日配額，目前設有快取機制。
+- **舊機效能**：雖然已優化，但在舊裝置上仍應避免快速頻繁切換頁面。
 
 ## 文件導覽
 - 架構說明：`ARCHITECTURE.md`
 - 開發計畫：`docs/PLAN.md`
 - 進度摘要：`docs/PROGRESS.md`
-- 除錯紀錄：`docs/DEBUGLOG.md`（完整細節見 `docs/HISTORY/DEBUG_LOG.md`）
-- 團隊作業與紀律：`gemini.md`
+- 除錯紀錄：`docs/DEBUGLOG.md`
+- 團隊作業：`gemini.md`

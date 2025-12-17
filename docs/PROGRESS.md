@@ -25,8 +25,9 @@
 
 ## 待處理
 1) 訂閱/資料
-- [ ] `/api/subscriptions` 取回訂閱並呈現於 Drawer
-- [ ] 訂閱 Feed 聚合
+- [x] `/api/subscriptions` 取回訂閱並呈現於 Drawer
+- [x] 訂閱 Feed 聚合（首頁混合顯示）
+- [x] 自訂導覽與封鎖管理
 - [ ] LocalStorage 觀看歷史 + Drawer 分頁
 
 2) 搜尋
