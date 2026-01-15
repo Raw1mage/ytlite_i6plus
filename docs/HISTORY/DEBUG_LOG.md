@@ -1,5 +1,27 @@
 # 除錯記錄（完整版，繁體）
 
+## 2026-01-15：系統崩潰與環境恢復
+- **時間**：2026-01-15 12:20 UTC+8
+- **狀態**：✅ 成功恢復
+- **問題描述**：
+    - 服務完全無法訪問，`webctl.sh status` 顯示所有容器已停止。
+    - `ytlite-web` 啟動失敗日誌：`Error loading ASGI app. Could not import module "main".`
+    - `ytlite-engine` 日誌顯示三週前 Invidious 引擎解析 Hash 為 Nil 導致崩潰。
+- **根因分析**：
+    1. **容器孤兒**：系統中存在名為 `/ytlite-postgres` 的停止容器（ID: d5fc2c5a...），導致 `docker-compose` 無法直接啟動新容器。
+    2. **模組導入路徑**：Docker 原始 image 可能與現有 `src/middleware` 掛載內容有衝突，需要強行編譯並清除快取。
+- **解決方案**：
+    1. 執行 `docker rm ytlite-web ytlite-engine ytlite-postgres` 清理殘留。
+    2. 修改 `docker-compose.yml` 移除 obsolete `version` 欄位以符合最新 Compose 規範。
+    3. 執行 `./webctl.sh up` 重建網路與容器。
+- **驗證成果**：
+    - Web 界面 (Port 1214) 回應正常。
+    - `/api/videos` 成功從 Invidious 取得影片資料。
+    - `ytlite-postgres` 健康檢查顯示 Healthy。
+
+---
+
+
 **Session ID**：2025-12-14_v3_refactor  
 **時間**：2025-12-14 21:45 UTC+8  
 **階段**：影片清單與播放重構  

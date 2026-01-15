@@ -2,6 +2,18 @@
 
 本檔彙總近期除錯重點；完整長文請見 `docs/HISTORY/DEBUG_LOG.md`。
 
+## 2026-01-15：服務異常恢復（✅）
+- **症狀**：所有容器處於 `Exited` 狀態，`ytlite-web` 報錯 `Could not import module "main"`，`ytlite-engine` 因解析錯誤停止。
+- **原因**：
+  1. 容器快取與掛載路徑殘留導致模組導入失敗。
+  2. docker 衝突：存在與 `ytlite-postgres` 同名的孤兒容器。
+- **處置**：
+  1. 執行 `webctl.sh down` 與 `docker rm` 清除衝突容器。
+  2. 修正 `docker-compose.yml` 移除過時的 `version` 宣告。
+  3. 執行 `webctl.sh up` 重新編譯並動態掛載服務。
+- **結果**：服務已全數恢復，Web 界面與 API 運作正常。
+
+
 ## 2025-12-16：Drawer 訂閱列表顯示空白（✅）
 - **症狀**：側邊抽屜「訂閱內容」顯示 `No subscriptions found.`，即使已登入且後端回傳訂閱清單。
 - **原因**：前端僅處理純陣列回傳，未解析 `/api/subscriptions` 的 `{ subscriptions: [...] }` 物件。
