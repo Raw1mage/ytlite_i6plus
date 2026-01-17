@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .playlist-page {
+        display: flex;
+        gap: 24px;
+        padding: 24px;
+        max-width: 1284px;
+        margin: 0 auto;
+        min-height: calc(100vh - 60px);
+    }
+
+    .playlist-sidebar {
+        width: 360px;
+        flex-shrink: 0;
+    }
+
+    .playlist-sidebar-inner {
+        position: sticky;
+        top: 24px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(20, 20, 20, 1) 100%);
+        border-radius: 12px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .playlist-thumb {
+        width: 100%;
+        aspect-ratio: 16/9;
+        object-fit: cover;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        margin-bottom: 16px;
+    }
+
+    .playlist-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: #fff;
+    }
+
+    .playlist-author {
+        font-size: 14px;
+        font-weight: 500;
+        color: #fff;
+        margin-bottom: 4px;
+    }
+
+    .playlist-stats {
+        font-size: 12px;
+        color: #aaa;
+        margin-bottom: 16px;
+    }
+
+    .action-btn {
+        background: #fff;
+        color: #0f0f0f;
+        border: none;
+        padding: 10px 0;
+        border-radius: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: background 0.2s;
+    }
+
+    .action-btn:hover {
+        background: #e0e0e0;
+    }
+
+    .playlist-videos {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .video-row {
+        display: flex;
+        gap: 12px;
+        padding: 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .video-row:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .video-row .index {
+        width: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #aaa;
+        font-size: 14px;
+    }
+
+    .video-row img {
+        width: 160px;
+        aspect-ratio: 16/9;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .video-row .info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .video-row .title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: #fff;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .video-row .uploader {
+        font-size: 12px;
+        color: #aaa;
+    }
+
+    @media (max-width: 900px) {
+        .playlist-page {
+            flex-direction: column;
+        }
+
+        .playlist-sidebar {
+            width: 100%;
+        }
+
+        .playlist-sidebar-inner {
+            position: static;
+            background: #222;
+        }
+    }
+</style>
+
+<div id="loading-container" style="text-align:center; padding:50px;">
+    <div style="font-size:24px;color:#666;">Loading playlist...</div>
+</div>
+
+<div id="playlist-container" class="playlist-page" style="display:none;">
+    <!-- Sidebar -->
+    <div class="playlist-sidebar">
+        <div class="playlist-sidebar-inner">
+            <img id="pl-thumb" class="playlist-thumb" src="">
+            <div id="pl-title" class="playlist-title"></div>
+            <div id="pl-author" class="playlist-author"></div>
+            <div class="playlist-stats">
+                <span id="pl-count"></span> videos • Updated <span id="pl-updated"></span>
+            </div>
+
+            <button class="action-btn" onclick="playAll()">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                </svg>
+                Play All
+            </button>
+            <div id="pl-desc" style="margin-top:16px; font-size:13px; color:#ccc; line-height:1.4;"></div>
+        </div>
+    </div>
+
+    <!-- Videos -->
+    <div class="playlist-videos" id="video-list">
+        <!-- Rendered via JS -->
+    </div>
+</div>
+
+<script>
+    const playlistId = "{{ playlist_id }}";
+    let playlistData = null;
+
+    async function initPlaylist() {
+        try {
+            const res = await fetch(`/api/playlist/${playlistId}`);
+            if (res.status !== 200) throw new Error("Playlist not found");
+            playlistData = await res.json();
+            renderPlaylist(playlistData);
+        } catch (e) {
+            document.getElementById('loading-container').innerHTML = `<div style='color:red;'>Error: ${e.message}</div>`;
+        }
+    }
+
+    function renderPlaylist(data) {
+        document.getElementById('loading-container').style.display = 'none';
+        document.getElementById('playlist-container').style.display = 'flex';
+
+        document.title = `${data.title} - Playlist`;
+
+        document.getElementById('pl-thumb').src = data.thumbnail || '';
+        document.getElementById('pl-title').innerText = data.title;
+        document.getElementById('pl-author').innerText = data.author;
+        document.getElementById('pl-count').innerText = data.videoCount;
+        document.getElementById('pl-updated').innerText = data.updated;
+        document.getElementById('pl-desc').innerText = data.description || '';
+
+        const list = document.getElementById('video-list');
+        list.innerHTML = '';
+
+        data.videos.forEach((video, idx) => {
+            const div = document.createElement('div');
+            div.className = 'video-row';
+            div.setAttribute('data-vid', video.id);
+            div.setAttribute('data-channel', video.channel_id);
+
+            div.onclick = function () {
+                openPlayer(video);
+            };
+
+            div.innerHTML = `
+                <div class="index">${idx + 1}</div>
+                <img src="${video.thumbnail}" loading="lazy">
+                <div class="info">
+                    <div class="title">${video.title}</div>
+                    <div class="uploader">${video.uploader}</div>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    function playAll() {
+        if (playlistData && playlistData.videos.length > 0) {
+            openPlayer(playlistData.videos[0]);
+            // TODO: Pass whole playlist to player for queuing
+        }
+    }
+
+    window.onload = initPlaylist;
+</script>
+{% endblock %}

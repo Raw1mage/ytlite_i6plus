@@ -2,104 +2,413 @@
 
 {% block content %}
 <style>
+    /* Channel Page Specific Styles */
+    .channel-banner {
+        width: 100%;
+        height: 16vw;
+        min-height: 100px;
+        max-height: 200px;
+        background: #111;
+        object-fit: cover;
+    }
+
     .channel-header {
-        padding: 12px 10px 6px;
+        padding: 20px 0;
         display: flex;
-        align-items: center;
-        justify-content: space-between;
+        flex-direction: column;
+        align-items: flex-start;
+        max-width: 1284px;
+        margin: 0 auto;
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+
+    .header-top {
+        display: flex;
+        align-items: flex-start;
+        /* changed from center to flex-start for text wrapping */
+        gap: 24px;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .channel-avatar {
+        width: 128px;
+        height: 128px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: #333;
+        flex-shrink: 0;
+    }
+
+    .channel-meta {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        flex-grow: 1;
+        padding-top: 10px;
+        align-items: flex-start;
+        /* Fix button stretching */
+    }
+
+
+
+    .channel-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 4px;
         color: #fff;
     }
-    .channel-title {
-        font-size: 18px;
-        font-weight: 700;
-    }
-    .video-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        padding: 10px;
-    }
-    .video-card {
-        background: #1e1e1e;
-        border-radius: 8px;
-        overflow: hidden;
-        cursor: pointer;
-    }
-    .video-card img {
-        width: 100%;
-        aspect-ratio: 16 / 9;
-        object-fit: cover;
-        background: #000;
-        display: block;
-    }
-    .video-card .info {
-        padding: 10px;
-    }
-    .video-card .title {
+
+    .channel-stats {
         font-size: 14px;
-        font-weight: 600;
-        margin-bottom: 6px;
+        color: #aaa;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+
+    .channel-desc {
+        font-size: 14px;
+        color: #ddd;
+        max-width: 800px;
+        line-height: 1.4;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        line-height: 1.3;
+        margin-bottom: 12px;
+        cursor: pointer;
     }
-    .video-card .uploader {
-        font-size: 12px;
+
+    .channel-desc.expanded {
+        -webkit-line-clamp: unset;
+        line-clamp: unset;
+    }
+
+    .subscribe-btn {
+        background: #fff;
+        color: #0f0f0f;
+        border: none;
+        padding: 0 16px;
+        height: 36px;
+        border-radius: 18px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+        width: auto;
+        min-width: 80px;
+    }
+
+    .subscribe-btn:hover {
+        background: #e0e0e0;
+    }
+
+    .subscribe-btn.subscribed {
+        background: #272727;
+        color: #fff;
+        border: 1px solid #3f3f3f;
+    }
+
+    /* Tabs */
+    .channel-tabs {
+        display: flex;
+        gap: 20px;
+        border-bottom: 1px solid #333;
+        padding: 0 24px;
+        margin-top: 20px;
+        max-width: 1284px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .tab-item {
+        padding: 10px 0;
+        font-size: 15px;
+        font-weight: 500;
         color: #aaa;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
     }
+
+    .tab-item.active {
+        color: #fff;
+        border-bottom: 3px solid #fff;
+    }
+
+    /* Content */
+    .channel-content {
+        padding: 24px;
+        max-width: 1284px;
+        margin: 0 auto;
+    }
+
+    .video-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 16px;
+    }
+
     @media (max-width: 600px) {
-        .video-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .channel-avatar {
+            width: 80px;
+            height: 80px;
+        }
+
+        .channel-title {
+            font-size: 20px;
+        }
+
+        .header-top {
+            flex-direction: row;
+            gap: 16px;
+        }
+
+        .channel-tabs {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .video-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
     }
 </style>
 
-<div class="channel-header">
-    <div class="channel-title">{{ channel_name or '頻道' }}</div>
-    <a href="/" style="color:#3ea6ff; font-size:13px;">回到首頁</a>
+<div id="loading-container" style="text-align:center; padding:50px;">
+    <div style="font-size:24px;color:#666;">Loading channel...</div>
 </div>
 
-<div id="channel-grid" class="video-grid"></div>
-<div id="channel-loading" style="text-align:center; padding:20px; color:#777;">載入中...</div>
-<div id="channel-empty" style="text-align:center; padding:20px; color:#777; display:none;">沒有影片</div>
+<div id="channel-container" style="display:none;">
+    <!-- Banner -->
+    <img id="banner-img" class="channel-banner" src="" style="display:none;">
+
+    <!-- Header -->
+    <div class="channel-header">
+        <div class="header-top">
+            <img id="avatar-img" class="channel-avatar" src="">
+
+            <div class="channel-meta">
+                <div class="channel-title" id="display-name"></div>
+                <div class="channel-stats">
+                    <span id="handle-text"></span>
+                    <span id="sub-count-text"></span>
+                </div>
+                <div class="channel-desc" id="desc-text" onclick="this.classList.toggle('expanded')"></div>
+
+                <button id="sub-btn" class="subscribe-btn" onclick="toggleSubscribe()">Subscribe</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="channel-tabs">
+        <div class="tab-item active" onclick="switchTab('videos')">Videos</div>
+        <div class="tab-item" onclick="switchTab('playlists')">Playlists</div>
+        <div class="tab-item" onclick="switchTab('about')">About</div>
+    </div>
+
+    <!-- Content -->
+    <div class="channel-content">
+        <div id="videos-tab">
+            <h3 style="margin-top:0;margin-bottom:16px;">Latest Videos</h3>
+            <div id="video-grid" class="video-grid"></div>
+        </div>
+        <div id="playlists-tab" style="display:none; text-align:center; color:#777; padding:40px;">
+            No playlists found (Not implemented yet).
+        </div>
+        <div id="about-tab" style="display:none; padding:20px; color:#ddd; white-space: pre-wrap;"></div>
+    </div>
+</div>
 
 <script>
     const channelId = "{{ channel_id }}";
-    const channelName = "{{ channel_name }}";
+    // Preload name if available
+    const initialName = "{{ channel_name }}";
 
-    async function loadChannelVideos() {
-        const grid = document.getElementById('channel-grid');
-        const loading = document.getElementById('channel-loading');
-        const empty = document.getElementById('channel-empty');
+    // Global Data
+    let channelData = null;
+
+    async function initChannel() {
         try {
-            const res = await fetch(`/api/channel_videos?channelId=${encodeURIComponent(channelId)}`);
-            const data = await res.json();
-            loading.style.display = 'none';
-            if (!data.videos || data.videos.length === 0) {
-                empty.style.display = 'block';
-                return;
-            }
+            const res = await fetch(`/api/channel/${channelId}`);
+            if (res.status !== 200) throw new Error("Channel not found");
+            channelData = await res.json();
+            renderChannel(channelData);
+        } catch (e) {
+            document.getElementById('loading-container').innerHTML = `<div style='color:red;'>Error: ${e.message}</div>`;
+        }
+    }
+
+    function renderChannel(data) {
+        document.getElementById('loading-container').style.display = 'none';
+        document.getElementById('channel-container').style.display = 'block';
+
+        // Banner
+        if (data.banner) {
+            const b = document.getElementById('banner-img');
+            b.src = data.banner;
+            b.style.display = 'block';
+        }
+
+        // Avatar
+        document.getElementById('avatar-img').src = data.avatar || '/static/default_avatar.png'; // Should add default
+
+        // Meta
+        document.getElementById('display-name').innerText = data.title;
+        document.title = `${data.title} - YT Lite`;
+
+        let stats = `@${data.id}`;
+        if (data.subCount) stats += ` • ${formatCount(data.subCount)} subscribers`;
+        document.getElementById('handle-text').innerText = stats;
+
+        document.getElementById('desc-text').innerText = data.description || '';
+        document.getElementById('about-tab').innerText = data.description || 'No description.';
+
+        // Check Sub Status
+        checkSubStatus();
+
+        // Render Videos
+        const grid = document.getElementById('video-grid');
+        grid.innerHTML = '';
+        if (data.videos && data.videos.length > 0) {
             data.videos.forEach(video => {
                 const div = document.createElement('div');
                 div.className = 'video-card';
                 div.setAttribute('data-vid', video.id);
-                div.setAttribute('data-channel', video.channel_id || channelId);
-                div.onclick = function () { openPlayer(video); };
+                div.setAttribute('data-channel', video.channel_id);
+
+                // Onclick handled by base.html global listener (ensure data-vid is set)
                 div.innerHTML = `
                     <img src="${video.thumbnail}" loading="lazy">
                     <div class="info">
                         <div class="title">${video.title}</div>
-                        <div class="uploader">${video.uploader || channelName}</div>
+                        <div class="uploader" style="font-size:12px;">${video.view_count} views • ${video.published || ''}</div>
                     </div>
                 `;
                 grid.appendChild(div);
             });
+        } else {
+            grid.innerHTML = '<div style="color:#777; grid-column:1/-1; text-align:center;">No videos found.</div>';
+        }
+    }
+
+    function formatCount(n) {
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return n;
+    }
+
+    function switchTab(name) {
+        document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
+
+        document.getElementById('videos-tab').style.display = 'none';
+        document.getElementById('playlists-tab').style.display = 'none';
+        document.getElementById('about-tab').style.display = 'none';
+
+        document.getElementById(`${name}-tab`).style.display = 'block';
+
+        if (name === 'playlists') {
+            loadPlaylists();
+        }
+    }
+
+    let playlistsLoaded = false;
+    async function loadPlaylists() {
+        if (playlistsLoaded) return;
+        const container = document.getElementById('playlists-tab');
+        container.innerHTML = 'Loading playlists...';
+
+        try {
+            const res = await fetch(`/api/channel/${channelId}/playlists`);
+            const data = await res.json();
+
+            if (data.playlists && data.playlists.length > 0) {
+                container.innerHTML = '<div class="video-grid" id="playlist-grid"></div>';
+                const grid = document.getElementById('playlist-grid');
+
+                data.playlists.forEach(pl => {
+                    const div = document.createElement('div');
+                    div.className = 'playlist-card video-card';
+                    div.onclick = function () { location.href = `/playlist?list=${pl.id}`; };
+                    div.innerHTML = `
+                        <div style="position:relative;">
+                            <img src="${pl.thumbnail}" loading="lazy" style="width:100%; aspect-ratio:16/9; object-fit:cover; opacity:0.8;">
+                            <div class="overlay" style="position:absolute; top:0; right:0; bottom:0; width:40%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; flex-direction:column; color:#fff;">
+                                <span style="font-weight:bold; font-size:18px;">${pl.count}</span>
+                                <span style="font-size:12px;">VIDEOS</span>
+                            </div>
+                        </div>
+                        <div class="info">
+                            <div class="title">${pl.title}</div>
+                            <div class="uploader">View full playlist</div>
+                        </div>
+                    `;
+                    grid.appendChild(div);
+                });
+                playlistsLoaded = true;
+            } else {
+                container.innerHTML = 'No playlists found.';
+            }
         } catch (e) {
-            loading.innerText = '載入失敗';
+            container.innerHTML = 'Error loading playlists.';
             console.error(e);
         }
     }
 
-    window.onload = loadChannelVideos;
+    // Subscribe Logic (Reuse logic from base/main, but here locally for UI)
+    // We assume window.userSubscriptions is loaded in base.html
+    function checkSubStatus() {
+        if (!window.userSubscriptions) return; // Wait for base load?
+        const isSub = window.userSubscriptions.some(s => s.channelId === channelId);
+        updateSubBtn(isSub);
+    }
+
+    function updateSubBtn(isSub) {
+        const btn = document.getElementById('sub-btn');
+        if (isSub) {
+            btn.innerText = 'Subscribed';
+            btn.classList.add('subscribed');
+        } else {
+            btn.innerText = 'Subscribe';
+            btn.classList.remove('subscribed');
+        }
+    }
+
+    async function toggleSubscribe() {
+        const btn = document.getElementById('sub-btn');
+        const isSub = btn.classList.contains('subscribed');
+        // Optimistic UI
+        updateSubBtn(!isSub);
+
+        try {
+            await fetch(`/api/subscribe?channelId=${channelId}`, { method: 'POST' });
+            // Refresh global list
+            if (typeof fetchSubscriptions === 'function') fetchSubscriptions(); // in base.html
+        } catch (e) {
+            updateSubBtn(isSub); // Revert
+            console.error(e);
+        }
+    }
+
+    // Initialize
+    window.addEventListener('load', () => {
+        initChannel();
+        // Check subs if already loaded, or wait
+        // Simple polling to check if base loaded subs
+        const check = setInterval(() => {
+            if (window.userSubscriptions && window.userSubscriptions.length > 0) {
+                checkSubStatus();
+                clearInterval(check);
+            }
+        }, 500);
+        setTimeout(() => clearInterval(check), 5000);
+    });
+
 </script>
 {% endblock %}

@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .downloads-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #333;
+    }
+
+    .downloads-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .download-item {
+        background: #1e1e1e;
+        border-radius: 8px;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .download-progress-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        background: #4caf50;
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+
+    .dl-thumb {
+        width: 80px;
+        height: 45px;
+        background: #000;
+        object-fit: cover;
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+
+    .dl-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .dl-title {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 5px;
+        font-size: 14px;
+    }
+
+    .dl-meta {
+        font-size: 12px;
+        color: #aaa;
+    }
+
+    .dl-status {
+        margin-left: auto;
+        font-size: 13px;
+        font-weight: bold;
+        color: #aaa;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .dl-action-btn {
+        background: #333;
+        border: none;
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+
+    .dl-action-btn.delete {
+        background: #cc0000;
+    }
+
+    .dl-action-btn:hover {
+        opacity: 0.9;
+    }
+
+    /* Status Colors */
+    .status-queued {
+        color: #f0ad4e;
+    }
+
+    .status-downloading {
+        color: #5bc0de;
+    }
+
+    .status-converting {
+        color: #5bc0de;
+    }
+
+    .status-finished {
+        color: #5cb85c;
+    }
+
+    .status-error {
+        color: #d9534f;
+    }
+
+    @media (max-width: 600px) {
+        .dl-thumb {
+            width: 60px;
+            height: 34px;
+        }
+    }
+</style>
+
+<div class="downloads-header">
+    <h2 style="margin:0;">Downloads</h2>
+    <div style="margin-left:auto; font-size:13px; color:#777;">Auto-refreshing</div>
+</div>
+
+<div id="downloads-container" class="downloads-list">
+    <!-- Populated by JS -->
+    <div style="text-align:center; padding:30px; color:#555;">Loading...</div>
+</div>
+
+<script>
+    let pollInterval = null;
+
+    async function fetchDownloads() {
+        try {
+            const res = await fetch('/api/downloads');
+            const jobs = await res.json();
+            renderDownloads(jobs);
+        } catch (e) {
+            console.error('Fetch downloads error:', e);
+        }
+    }
+
+    function renderDownloads(jobs) {
+        const container = document.getElementById('downloads-container');
+        if (jobs.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:#555;">No active downloads</div>';
+            return;
+        }
+
+        container.innerHTML = '';
+        jobs.forEach(job => {
+            const item = document.createElement('div');
+            item.className = 'download-item';
+
+            let statusText = job.status.toUpperCase();
+            let statusClass = `status-${job.status}`;
+            let progress = job.progress || 0;
+            let meta = `Format: ${job.format.toUpperCase()} • Type: ${job.type}`;
+
+            if (job.status === 'downloading') {
+                meta += ` • ${job.speed || ''} • ETA: ${job.eta || ''}`;
+                statusText = `${progress.toFixed(1)}%`;
+            } else if (job.status === 'finished') {
+                statusText = 'DONE';
+            }
+
+            // Actions
+            let actions = '';
+            if (job.status === 'finished') {
+                const filename = job.filename ? job.filename.split('/').pop() : '';
+                // Since user mounted DOWNLOADS_DIR to /downloads
+                // We need to guess the URL or use the one provided by status if we tracked it
+                // The downloader saves as `title [id].ext`.
+                // Ideally backend returns full relative URL.
+                // For now, let's just show "Open" if we could, but browsers block local file links.
+                // We mounted /downloads in main.py, so we can link to it!
+                // Construct link: /downloads/filename
+                if (job.filename) {
+                    // The filename from yt-dlp might be absolute path. We need relative.
+                    const name = job.filename.split('/').pop();
+                    actions += `<a href="/downloads/${encodeURIComponent(name)}" target="_blank" class="dl-action-btn" style="text-decoration:none; display:inline-block;">Open</a>`;
+                }
+            } else if (['queued', 'downloading'].includes(job.status)) {
+                actions += `<button class="dl-action-btn delete" onclick="cancelJob('${job.job_id}')">Cancel</button>`;
+            } else {
+                actions += `<button class="dl-action-btn delete" onclick="deleteJob('${job.job_id}')">Dismiss</button>`;
+            }
+
+            // Thumbnail (we don't store thumb URL in job currently, so use generic or try to fetch?)
+            // We can add thumb to add_job args later. For now, use a placeholder or generic icon.
+            const thumbUrl = `https://i.ytimg.com/vi/${job.video_id}/default.jpg`;
+
+            item.innerHTML = `
+                <div class="download-progress-bar" style="width: ${progress}%;"></div>
+                <img src="${thumbUrl}" class="dl-thumb" loading="lazy">
+                <div class="dl-info">
+                    <div class="dl-title">${job.title}</div>
+                    <div class="dl-meta">${meta}</div>
+                </div>
+                <div class="dl-status">
+                    <span class="${statusClass}">${statusText}</span>
+                    ${actions}
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    async function cancelJob(id) {
+        if (!confirm('Cancel this download?')) return;
+        await fetch(`/api/downloads/${id}`, { method: 'DELETE' }); // Using DELETE for cancel/delete for simplicity
+        fetchDownloads();
+    }
+
+    async function deleteJob(id) {
+        await fetch(`/api/downloads/${id}`, { method: 'DELETE' });
+        fetchDownloads();
+    }
+
+    // Determine poll rate based on visibility
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            clearInterval(pollInterval);
+        } else {
+            fetchDownloads();
+            pollInterval = setInterval(fetchDownloads, 2000);
+        }
+    });
+
+    // Start
+    fetchDownloads();
+    pollInterval = setInterval(fetchDownloads, 2000);
+</script>
+{% endblock %}

@@ -11,7 +11,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>YT Lite v3.1</title>
+    <title>YT Lite</title>
     <style>
         body {
             margin: 0;
@@ -303,7 +303,7 @@
 
     <!-- Drawer -->
     <div class="drawer" id="app-drawer">
-        <div class="drawer-header">Youtube Lite v2</div>
+        <div class="drawer-header">YT Lite</div>
         <div class="drawer-section">
             <a href="/" class="drawer-item" onclick="closeDrawer()">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" style="margin-right: 15px;">
@@ -331,6 +331,7 @@
             <a href="/manage/subscriptions" class="drawer-item" onclick="closeDrawer()">訂閱管理</a>
             <a href="/manage/blocked" class="drawer-item" onclick="closeDrawer()">封鎖管理</a>
             <a href="/manage/nav" class="drawer-item" onclick="closeDrawer()">導覽管理</a>
+            <a href="/downloads" class="drawer-item" onclick="closeDrawer()">下載管理器</a>
         </div>
         {% endif %}
 
@@ -422,6 +423,63 @@
         }
     </script>
     <div class="container">{% block content %}{% endblock %}</div>
+
+    <footer
+        style="text-align: center; padding: 30px 20px; color: #777; font-size: 13px; border-top: 1px solid #222; margin-top: auto; background: #0a0a0a;">
+        <div style="margin-bottom: 10px;">
+            <a href="/privacy" style="margin: 0 15px; color: #aaa; text-decoration: none;">Privacy Policy</a>
+            <a href="/terms" style="margin: 0 15px; color: #aaa; text-decoration: none;">Terms of Service</a>
+        </div>
+        <div>© 2026 YT Lite</div>
+    </footer>
+
+    <!-- Selection Action Bar -->
+    <div id="selection-bar"
+        style="position: fixed; bottom: -80px; left: 0; width: 100%; background: #212121; border-top: 1px solid #333; padding: 15px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; transition: bottom 0.3s ease; z-index: 2000;">
+        <div style="font-weight: bold; margin-left: 10px;">
+            <span id="selection-count">0</span> items selected
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="autoDownloadSelected('mp3')"
+                style="background: #333; border: 1px solid #444; padding: 8px 16px; border-radius: 4px; color: #fff; cursor: pointer;">Download
+                MP3</button>
+            <button onclick="autoDownloadSelected('mp4')"
+                style="background: #cc0000; border: none; padding: 8px 16px; border-radius: 4px; color: #fff; cursor: pointer; font-weight: bold;">Download
+                MP4</button>
+            <button onclick="clearSelection()"
+                style="background: transparent; border: 1px solid #555; padding: 8px 16px; border-radius: 4px; color: #aaa; cursor: pointer;">Cancel</button>
+        </div>
+    </div>
+
+    <style>
+        .video-card {
+            position: relative;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .video-card.selected {
+            box-shadow: 0 0 0 3px #cc0000;
+            transform: scale(0.98);
+        }
+
+        .video-card.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #cc0000;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+    </style>
 
     <!-- Global Player Overlay (Moved from index.html) -->
     <div id="player-overlay" class="overlay-container">
@@ -676,6 +734,7 @@
         #player-desc.desc-clamped {
             display: -webkit-box;
             -webkit-line-clamp: 4;
+            line-clamp: 4;
             -webkit-box-orient: vertical;
         }
 
@@ -714,7 +773,8 @@
 
         .video-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            /* Responsive: Min 250px per card, fits as many as possible */
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 15px;
         }
 
@@ -742,6 +802,7 @@
             margin-bottom: 5px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
             line-height: 1.3;
@@ -754,10 +815,7 @@
         }
 
         @media (max-width: 600px) {
-            .video-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-            }
+            /* .video-grid: Handled by repeat(auto-fill, minmax(250px, 1fr)) */
         }
     </style>
 
@@ -766,6 +824,216 @@
         window.isMinimized = false;
         window.userSubscriptions = [];
         window.userBlocklist = {}; // {id: name}
+        window.selectedVideos = new Set(); // {video_id}
+        window.videoDataCache = {}; // {id: {title, ...}} store info for downloads
+
+        // --- Auto Download Logic ---
+        async function autoDownloadSelected(fmt) {
+            if (window.selectedVideos.size === 0) return;
+            const ids = Array.from(window.selectedVideos);
+
+            if (!confirm(`Download ${ids.length} items as ${fmt.toUpperCase()}?`)) return;
+
+            // Clear selection immediately
+            clearSelection();
+            showToast(`Processing ${ids.length} downloads... please wait.`);
+
+            for (const vid of ids) {
+                const info = window.videoDataCache[vid];
+                if (!info) continue;
+
+                try {
+                    const res = await fetch('/api/download', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: vid,
+                            title: info.title,
+                            format: fmt,
+                            type: 'video'
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.job_id) trackDownload(data.job_id);
+                } catch (e) { console.error(e); }
+            }
+        }
+
+        function trackDownload(jobId) {
+            const interval = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/downloads');
+                    if (res.status === 404) return;
+                    const jobs = await res.json();
+                    const job = jobs.find(j => j.job_id === jobId);
+
+                    if (job) {
+                        if (job.status === 'finished') {
+                            clearInterval(interval);
+                            triggerFileDownload(jobId); // Pass JobID
+                            showToast(`Download started: ${job.title}`); // Use Title
+
+                            // Auto cleanup after 2 minutes
+                            setTimeout(() => {
+                                fetch(`/api/downloads/${jobId}`, { method: 'DELETE' });
+                            }, 120000);
+
+                        } else if (job.status === 'error') {
+                            clearInterval(interval);
+                            showToast(`Error: ${job.title}`);
+                        }
+                    } else { clearInterval(interval); }
+                } catch (e) { clearInterval(interval); }
+            }, 3000); // Check every 3 seconds
+        }
+
+        function triggerFileDownload(jobId) {
+            if (!jobId) return;
+            const url = `/api/download_file/${jobId}`;
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            // a.download attribute is not strictly needed if backend sends Content-Disposition
+            // but we can add it if we want. Let's rely on backend.
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function showToast(text) {
+            const msg = document.createElement('div');
+            msg.innerText = text;
+            msg.style.cssText = "position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:12px 24px; border-radius:30px; z-index:3000; font-size:14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: opacity 0.5s;";
+            document.body.appendChild(msg);
+            setTimeout(() => {
+                msg.style.opacity = '0';
+                setTimeout(() => msg.remove(), 500);
+            }, 4000);
+        }
+
+        // --- Selection Mode Logic & Universal Click Handler ---
+        document.addEventListener('click', function (e) {
+            // Check if clicked inside a video-card
+            const card = e.target.closest('.video-card');
+            if (card) {
+                const vid = card.getAttribute('data-vid');
+                if (!vid) return;
+
+                // Stop any other listeners (like inline onclicks if they exist)
+                // We handle everything here
+
+                // Get Video Data from Card
+                let title = 'Untitled';
+                let uploader = 'Unknown';
+                let thumb = card.querySelector('img')?.src || '';
+                let channelId = card.getAttribute('data-channel') || '';
+
+                const titleEl = card.querySelector('.title');
+                if (titleEl) title = titleEl.innerText;
+                const authorEl = card.querySelector('.uploader');
+                if (authorEl) uploader = authorEl.innerText;
+
+                // Cache it
+                window.videoDataCache[vid] = {
+                    id: vid,
+                    title: title,
+                    type: 'video'
+                };
+
+                // Keyboard Modifiers
+                const isMulti = e.ctrlKey || e.metaKey;
+                const isRange = e.shiftKey;
+                const isSelectionActive = window.selectedVideos.size > 0;
+
+                if (isMulti || isSelectionActive) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSelection(vid, card);
+                } else if (isRange) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Range selection placeholder
+                } else {
+                    // Normal Click -> Open Player
+                    // Call openPlayer
+                    if (typeof openPlayer === 'function') {
+                        openPlayer({
+                            id: vid,
+                            title: title,
+                            uploader: uploader,
+                            thumbnail: thumb,
+                            channel_id: channelId
+                        });
+                    }
+                }
+            }
+        }, true); // Capture phase
+
+        function toggleSelection(vid, card) {
+            if (window.selectedVideos.has(vid)) {
+                window.selectedVideos.delete(vid);
+                card.classList.remove('selected');
+            } else {
+                window.selectedVideos.add(vid);
+                card.classList.add('selected');
+            }
+            updateSelectionUI();
+        }
+
+        function clearSelection() {
+            window.selectedVideos.clear();
+            document.querySelectorAll('.video-card.selected').forEach(el => el.classList.remove('selected'));
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const bar = document.getElementById('selection-bar');
+            const count = document.getElementById('selection-count');
+            count.innerText = window.selectedVideos.size;
+
+            if (window.selectedVideos.size > 0) {
+                bar.style.bottom = '0px';
+            } else {
+                bar.style.bottom = '-80px';
+            }
+        }
+
+        async function downloadSelected(fmt) {
+            if (window.selectedVideos.size === 0) return;
+            const ids = Array.from(window.selectedVideos);
+
+            if (!confirm(`Download ${ids.length} items as ${fmt.toUpperCase()}?`)) return;
+
+            // Submit jobs
+            for (const vid of ids) {
+                const info = window.videoDataCache[vid];
+                if (!info) continue;
+
+                try {
+                    await fetch('/api/download', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: vid,
+                            title: info.title,
+                            format: fmt,
+                            type: 'video'
+                        })
+                    });
+                } catch (e) {
+                    console.error("Queue error", e);
+                }
+            }
+
+            clearSelection();
+            // Show toast or navigate? 
+            // Just show small alert
+            const msg = document.createElement('div');
+            msg.innerText = "Add tasks to download queue";
+            msg.style.cssText = "position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:30px; z-index:3000;";
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 2000);
+        }
 
         // --- Drawer Logic ---
         function toggleDrawer() {

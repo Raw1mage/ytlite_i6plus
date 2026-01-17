@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .legal-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 40px;
+        background: rgba(30, 30, 30, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #e0e0e0;
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    h1 {
+        font-size: 2.5rem;
+        margin-bottom: 30px;
+        background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 15px;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+        color: #fff;
+        margin-top: 30px;
+        margin-bottom: 15px;
+    }
+
+    p,
+    li {
+        color: #ccc;
+        font-size: 1.05rem;
+        margin-bottom: 15px;
+    }
+
+    ul {
+        padding-left: 20px;
+    }
+
+    a.link {
+        color: #4da3ff;
+        text-decoration: none;
+        border-bottom: 1px dashed rgba(77, 163, 255, 0.5);
+        transition: all 0.2s;
+    }
+
+    a.link:hover {
+        color: #80bdff;
+        border-bottom-style: solid;
+    }
+
+    @media (max-width: 600px) {
+        .legal-container {
+            padding: 20px;
+            margin: 20px 10px;
+        }
+
+        h1 {
+            font-size: 2rem;
+        }
+    }
+</style>
+
+<div class="legal-container">
+    <h1>Terms of Service</h1>
+    <p>Last updated: January 18, 2026</p>
+
+    <h2>1. Acceptance of Terms</h2>
+    <p>By accessing and using YT Lite, you accept and agree to be bound by the terms and provision of this agreement.
+    </p>
+
+    <h2>2. Description of Service</h2>
+    <p>YT Lite provides a lightweight, privacy-focused interface for viewing video content. The service is provided "as
+        is" and intended for personal, non-commercial use.</p>
+
+    <h2>3. User Conduct</h2>
+    <p>You agree not to use the service to:</p>
+    <ul>
+        <li>Violate any local, state, national, or international law.</li>
+        <li>Infringe upon the rights of others, including intellectual property rights.</li>
+        <li>Distribute malware or viruses.</li>
+        <li>Attempt to interfere with or disrupt the service servers or networks.</li>
+    </ul>
+
+    <h2>4. Content and Copyright</h2>
+    <p>All video content displayed via YT Lite is hosted by third-party platforms (primarily YouTube). We do not host or
+        store any video content. All rights belong to their respective owners.</p>
+
+    <h2>5. Termination</h2>
+    <p>We reserve the right to terminate your access to the service at any time, without cause or notice, which may
+        result in the forfeiture and destruction of all information associated with your account.</p>
+
+    <h2>6. Changes to Terms</h2>
+    <p>We reserve the right to modify these terms from time to time at our sole discretion. Your continued use of the
+        service after any such change constitutes your acceptance of the new Terms.</p>
+
+    <h2>7. Disclaimer of Warranties</h2>
+    <p>The service is provided on an "as is" and "as available" basis. We disclaim all warranties of any kind, whether
+        express or implied.</p>
+</div>
+{% endblock %}

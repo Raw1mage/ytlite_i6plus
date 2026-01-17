@@ -53,7 +53,8 @@
                     div.className = 'video-card';
                     if (video.channel_id) div.setAttribute('data-channel', video.channel_id);
                     div.setAttribute('data-vid', video.id);
-                    div.onclick = function () { openPlayer(video); }; // Defined in base.html
+                    // Onclick handled by base.html global listener
+
                     div.innerHTML = `
                         <img src="${video.thumbnail}" loading="lazy">
                         <div class="info">
@@ -124,7 +125,7 @@
             enterkeyhint="search">
         <button type="submit">Go</button>
     </form>
-    <div style="margin-top: 30px; font-size: 0.8em; color: #555;">Running on iPhone 6 Plus (iOS 12) - v3.1</div>
+    <div style="margin-top: 30px; font-size: 0.8em; color: #555;">Running on iPhone 6 Plus (iOS 12)</div>
 </div>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .legal-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 40px;
+        background: rgba(30, 30, 30, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #e0e0e0;
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    h1 {
+        font-size: 2.5rem;
+        margin-bottom: 30px;
+        background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 15px;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+        color: #fff;
+        margin-top: 30px;
+        margin-bottom: 15px;
+    }
+
+    p,
+    li {
+        color: #ccc;
+        font-size: 1.05rem;
+        margin-bottom: 15px;
+    }
+
+    ul {
+        padding-left: 20px;
+    }
+
+    .highlight-box {
+        background: rgba(255, 255, 255, 0.05);
+        border-left: 4px solid #cc0000;
+        padding: 15px 20px;
+        margin: 20px 0;
+        border-radius: 0 8px 8px 0;
+    }
+
+    a.link {
+        color: #4da3ff;
+        text-decoration: none;
+        border-bottom: 1px dashed rgba(77, 163, 255, 0.5);
+        transition: all 0.2s;
+    }
+
+    a.link:hover {
+        color: #80bdff;
+        border-bottom-style: solid;
+    }
+
+    @media (max-width: 600px) {
+        .legal-container {
+            padding: 20px;
+            margin: 20px 10px;
+        }
+
+        h1 {
+            font-size: 2rem;
+        }
+    }
+</style>
+
+<div class="legal-container">
+    <h1>Privacy Policy</h1>
+    <p>Last updated: January 18, 2026</p>
+
+    <div class="highlight-box">
+        <p><strong>Summary:</strong> YT Lite is a privacy-focused interface. We do not track your viewing habits or sell
+            your data. We use Google OAuth solely to verify your account and sync your subscriptions locally.</p>
+    </div>
+
+    <h2>1. Introduction</h2>
+    <p>Welcome to YT Lite ("we," "our," or "us"). We are committed to protecting your personal information and your
+        right to privacy. This Privacy Policy explains what information we collect, how we use it, and your rights in
+        relation to it.</p>
+
+    <h2>2. Information We Collect</h2>
+    <p>We only collect the minimum information necessary to provide our service:</p>
+    <ul>
+        <li><strong>Google Account Information:</strong> When you log in via Google, we receive your email address and
+            basic profile information to verify your identity.</li>
+        <li><strong>YouTube Data:</strong> We access your YouTube subscription list solely to display your personalized
+            feed. This data is derived directly from YouTube via the API.</li>
+        <li><strong>Local Usage Data:</strong> Your preferences (like blocked channels or custom navigation) are stored
+            locally on your own instance or device.</li>
+    </ul>
+
+    <h2>3. How We Use Your Information</h2>
+    <p>We use the information we collect to:</p>
+    <ul>
+        <li>Authenticate your access to the application.</li>
+        <li>Synchronize your YouTube subscriptions.</li>
+        <li>Provide a personalized viewing experience (e.g., hiding blocked channels).</li>
+    </ul>
+    <p>We <strong>do not</strong> share, sell, or rent your personal information to third parties.</p>
+
+    <h2>4. Data Storage and Security</h2>
+    <p>Your session tokens are stored securely. We implement industry-standard security measures to protect your data.
+        However, please remember that no method of transmission over the internet is 100% secure.</p>
+
+    <h2>5. Third-Party Services</h2>
+    <p>This application interacts with:</p>
+    <ul>
+        <li><strong>Google/YouTube API Services:</strong> Used for authentication and data retrieval. Please refer to
+            the <a href="http://www.google.com/policies/privacy" class="link" target="_blank">Google Privacy Policy</a>.
+        </li>
+        <li><strong>Invidious Instances:</strong> We use Invidious APIs to fetch video metadata without tracking.</li>
+    </ul>
+
+    <h2>6. Contact Us</h2>
+    <p>If you have questions about this policy, please contact us at support@ytlite.app.</p>
+</div>
+{% endblock %}

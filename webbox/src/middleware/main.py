@@ -11,6 +11,9 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleRequest
 
 import uuid
+
+from queue_manager import QueueManager
+
 app = FastAPI()
 
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -126,6 +129,17 @@ def clear_session_creds(request: Request):
 
 # Setup
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+# Downloads Mount
+DOWNLOADS_DIR = os.path.join(DATA_DIR, "downloads")
+if not os.path.exists(DOWNLOADS_DIR):
+    os.makedirs(DOWNLOADS_DIR)
+app.mount("/downloads", StaticFiles(directory=DOWNLOADS_DIR), name="downloads")
+
+# Queue Manager
+queue_manager = QueueManager(DOWNLOADS_DIR)
+
 templates = Jinja2Templates(directory="templates")
 
 def normalize_thumb(video_id: str, thumb_url: str) -> str:
@@ -175,6 +189,18 @@ async def read_root(request: Request, response: Response):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_page(request: Request):
+    creds = get_creds(request)
+    logged_in = (creds is not None and creds.valid)
+    return templates.TemplateResponse("privacy.html", {"request": request, "logged_in": logged_in})
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_page(request: Request):
+    creds = get_creds(request)
+    logged_in = (creds is not None and creds.valid)
+    return templates.TemplateResponse("terms.html", {"request": request, "logged_in": logged_in})
 
 @app.get("/login")
 async def login(request: Request):
@@ -573,33 +599,143 @@ async def channel_page_slash(request: Request, c: str = "", name: str = ""):
         raise HTTPException(status_code=400, detail="channelId is required")
     return await channel_page(request, c, name)
 
+# --- Playlist Routes ---
 
-@app.get("/api/channel_videos")
-async def channel_videos(channelId: str):
+@app.get("/playlist")
+async def playlist_page(request: Request, list: str):
     """
-    Fetch latest videos of a channel from Invidious.
+    Playlist page.
+    """
+    creds = get_creds(request)
+    logged_in = (creds is not None and creds.valid)
+    return templates.TemplateResponse("playlist.html", {"request": request, "playlist_id": list, "logged_in": logged_in})
+
+@app.get("/api/playlist/{playlistId}")
+async def get_playlist_details(playlistId: str):
+    """
+    Fetch full playlist details from Invidious.
+    """
+    async with httpx.AsyncClient() as client:
+        try:
+            url = f"{INVIDIOUS_API_URL}/api/v1/playlists/{playlistId}"
+            resp = await client.get(url)
+            data = resp.json()
+            
+            videos = []
+            for item in data.get('videos', []):
+                 thumb = normalize_thumb(item.get('videoId', ''), item.get('videoThumbnails', [{}])[0].get('url', ''))
+                 videos.append({
+                     "id": item.get('videoId'),
+                     "title": item.get('title'),
+                     "uploader": item.get('author'),
+                     "channel_id": data.get('authorId'), # Usually playlist author
+                     "thumbnail": thumb,
+                     "view_count": item.get('index', 0) # Index in playlist
+                 })
+            
+            info = {
+                "title": data.get('title'),
+                "author": data.get('author'),
+                "authorId": data.get('authorId'),
+                "description": data.get('description', ''),
+                "viewCount": data.get('viewCount', 0),
+                "updated": data.get('updated', ''),
+                "videoCount": data.get('videoCount', 0),
+                "thumbnail": data.get('playlistThumbnail'),
+                "videos": videos
+            }
+            return info
+        except Exception as e:
+            print(f"playlist_details error: {e}")
+            return {"error": str(e)}
+
+
+@app.get("/api/channel/{channelId}")
+async def get_channel_details(channelId: str):
+    """
+    Fetch full channel details from Invidious.
     """
     async with httpx.AsyncClient() as client:
         try:
             url = f"{INVIDIOUS_API_URL}/api/v1/channels/{channelId}"
             resp = await client.get(url)
             data = resp.json()
+            
+            # Process videos
             videos = []
             for item in data.get('latestVideos', []):
                 thumb = normalize_thumb(item.get('videoId', ''), item.get('videoThumbnails', [{}])[0].get('url', ''))
-
                 videos.append({
                     "id": item.get('videoId'),
                     "title": item.get('title', ''),
                     "uploader": data.get('author', ''),
                     "channel_id": channelId,
                     "thumbnail": thumb,
-                    "view_count": item.get('viewCount', 0)
+                    "view_count": item.get('viewCount', 0),
+                    "published": item.get('publishedText', '')
                 })
-            return {"videos": videos}
+
+            # Extract Profile Info
+            banner = None
+            if data.get('authorBanners'):
+                banner = data['authorBanners'][0]['url']
+            
+            avatar = ""
+            if data.get('authorThumbnails'):
+                avatar = data['authorThumbnails'][-1]['url'] # High res
+
+            info = {
+                "title": data.get('author'),
+                "id": data.get('authorId'),
+                "description": data.get('description'),
+                "subCount": data.get('subCount', 0),
+                "totalViews": data.get('totalViews', 0),
+                "banner": banner,
+                "avatar": avatar,
+                "videos": videos
+            }
+            return info
         except Exception as e:
-            print(f"channel_videos error: {e}")
-            return {"videos": [], "error": str(e)}
+            print(f"channel_details error: {e}")
+            return {"error": str(e)}
+
+@app.get("/api/channel/{channelId}/playlists")
+async def get_channel_playlists(channelId: str):
+    """
+    Fetch playlists of a channel.
+    """
+    async with httpx.AsyncClient() as client:
+        try:
+            # Invidious often paginates, but /playlists usually returns first batch
+            url = f"{INVIDIOUS_API_URL}/api/v1/channels/{channelId}/playlists"
+            resp = await client.get(url)
+            data = resp.json()
+            
+            playlists = []
+            if isinstance(data, dict) and data.get('playlists'):
+                 items = data['playlists']
+            elif isinstance(data, list):
+                 items = data
+            else:
+                 items = []
+                 
+            for item in items:
+                # Basic normalization
+                playlists.append({
+                    "id": item.get('playlistId'),
+                    "title": item.get('title'),
+                    "thumbnail": item.get('playlistThumbnail') or '',
+                    "count": item.get('videoCount', 0)
+                })
+            return {"playlists": playlists}
+        except Exception as e:
+            print(f"channel_playlists error: {e}")
+            return {"playlists": [], "error": str(e)}
+
+@app.get("/api/channel_videos")
+async def channel_videos(channelId: str):
+    # Backward compatibility or valid partial fetch
+    return await get_channel_details(channelId)
 
 @app.get("/api/get_stream")
 async def get_stream_proxy(request: Request, v: str):
@@ -778,3 +914,57 @@ async def manage_nav(request: Request):
         "logged_in": logged_in,
         "items": items
     })
+
+# --- Download API ---
+
+class DownloadRequest(pydantic.BaseModel):
+    id: str
+    title: str
+    format: str = "mp3" # mp3 or mp4
+    type: str = "video" # video or playlist
+
+@app.post("/api/download")
+async def start_download(job: DownloadRequest):
+    # For now, we only support single video downloads in MVP
+    job_id = queue_manager.add_job(job.id, job.title, job.format, job.type)
+    return {"status": "queued", "job_id": job_id}
+
+@app.get("/api/downloads")
+async def get_downloads():
+    return queue_manager.get_jobs()
+
+@app.delete("/api/downloads/{job_id}")
+async def cancel_download(job_id: str):
+    queue_manager.cancel_job(job_id)
+    queue_manager.clear_job(job_id)
+    return {"status": "deleted"}
+
+@app.get("/api/download_file/{job_id}")
+async def download_file(job_id: str):
+    # Find job
+    jobs = queue_manager.get_jobs()
+    job = next((j for j in jobs if j['job_id'] == job_id), None)
+    
+    if not job or not job.get('filename'):
+        # Fallback: check if we just have the file not tracked? 
+        # But MVP relies on job state.
+        raise HTTPException(status_code=404, detail="File not found or job expired")
+        
+    file_path = job['filename']
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File deleted from server")
+
+    # Determine filename for user
+    filename = os.path.basename(file_path)
+    
+    return FileResponse(
+        path=file_path, 
+        filename=filename, 
+        media_type='application/octet-stream'
+    )
+
+@app.get("/downloads", response_class=HTMLResponse)
+async def downloads_page(request: Request):
+    creds = get_creds(request)
+    logged_in = (creds is not None and creds.valid)
+    return templates.TemplateResponse("downloads.html", {"request": request, "logged_in": logged_in})
