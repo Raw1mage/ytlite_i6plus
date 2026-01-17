@@ -1093,6 +1093,7 @@
         window.userSubscriptions = [];
         window.userBlocklist = {}; // {id: name}
         window.selectedVideos = new Set(); // {video_id}
+        window.lastSelectedVid = null;
         window.videoDataCache = {}; // {id: {title, ...}} store info for downloads
 
         // --- Auto Download Logic ---
@@ -1196,14 +1197,18 @@
                 const isRange = e.shiftKey;
                 const isSelectionActive = window.selectedVideos.size > 0;
 
-                if (isMulti || isSelectionActive) {
+                if (isRange) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (window.lastSelectedVid) {
+                        selectRange(window.lastSelectedVid, vid);
+                    } else {
+                        toggleSelection(vid, card);
+                    }
+                } else if (isMulti || isSelectionActive) {
                     e.preventDefault();
                     e.stopPropagation();
                     toggleSelection(vid, card);
-                } else if (isRange) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Range selection placeholder
                 } else {
                     // Normal Click -> Open Player
                     // Call openPlayer
@@ -1221,12 +1226,34 @@
         }, true); // Capture phase
 
         function toggleSelection(vid, card) {
+            window.lastSelectedVid = vid;
             if (window.selectedVideos.has(vid)) {
                 window.selectedVideos.delete(vid);
                 card.classList.remove('selected');
             } else {
                 window.selectedVideos.add(vid);
                 card.classList.add('selected');
+            }
+            updateSelectionUI();
+        }
+
+        function selectRange(startId, endId) {
+            const allCards = Array.from(document.querySelectorAll('.video-card'));
+            const startIdx = allCards.findIndex(c => c.getAttribute('data-vid') === startId);
+            const endIdx = allCards.findIndex(c => c.getAttribute('data-vid') === endId);
+
+            if (startIdx === -1 || endIdx === -1) return;
+
+            const min = Math.min(startIdx, endIdx);
+            const max = Math.max(startIdx, endIdx);
+
+            for (let i = min; i <= max; i++) {
+                const card = allCards[i];
+                const vid = card.getAttribute('data-vid');
+                if (vid) {
+                    window.selectedVideos.add(vid);
+                    card.classList.add('selected');
+                }
             }
             updateSelectionUI();
         }

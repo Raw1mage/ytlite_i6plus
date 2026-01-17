@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.3.2] - 2026-01-18
+### Added
+- **Range Selection**: Implemented `Shift+Click` functionality to select multiple video cards in a range (A to B) in the video list.
+
 
 ## [0.3.1] - 2026-01-18
 ### Added

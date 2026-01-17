@@ -171,3 +171,11 @@ Reverted `base.html` to the known stable state (approx Step 2502). This restored
     - Implemented intelligent file reuse: Play requests check both dirs; Download requests check cache to copy instead of re-downloading.
     - Updated `QueueManager` to dedup active jobs in memory.
     - Cleaned up UI: Removed toggles, reduced margins, used absolute positioning for description toggle.
+
+## 2026-01-18: UI Feature - Range Selection
+- **Request**: Allow Shift+Click to select a range of video cards (Batch Selection).
+- **Implementation**:
+    - Added `window.lastSelectedVid` state to track anchor card.
+    - Updated click handler to detect `ShiftKey` and interpret it as range selection.
+    - Implemented `selectRange(start, end)` to iterate DOM elements and select inclusive range.
+    - Preserved existing Ctrl+Click toggle behavior.
