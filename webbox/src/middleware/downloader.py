@@ -10,16 +10,17 @@ class Downloader:
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
 
-    async def download(self, video_id, fmt, job_id, progress_callback):
+    async def download(self, video_id, fmt, job_id, progress_callback, output_dir=None):
         """
         Downloads a video using yt-dlp.
         fmt: 'mp3' or 'mp4'
         """
+        target_dir = output_dir or self.download_dir
         
         # Base options
         ydl_opts = {
-            # Use job_id as filename to avoid encoding/path issues
-            'outtmpl': f'{self.download_dir}/{job_id}.%(ext)s',
+            # Use video_id as filename to allow caching/reuse
+            'outtmpl': f'{target_dir}/{video_id}.%(ext)s',
             'progress_hooks': [lambda d: progress_callback(job_id, d)],
             'quiet': True,
             'no_warnings': True,

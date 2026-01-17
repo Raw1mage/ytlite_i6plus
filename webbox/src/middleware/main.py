@@ -134,13 +134,20 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # Downloads Mount
+# Downloads Mount
 DOWNLOADS_DIR = os.path.join(DATA_DIR, "downloads")
 if not os.path.exists(DOWNLOADS_DIR):
     os.makedirs(DOWNLOADS_DIR)
 app.mount("/downloads", StaticFiles(directory=DOWNLOADS_DIR), name="downloads")
 
+# Cache Mount
+CACHE_DIR = os.path.join(DATA_DIR, "cache")
+if not os.path.exists(CACHE_DIR):
+    os.makedirs(CACHE_DIR)
+app.mount("/cache", StaticFiles(directory=CACHE_DIR), name="cache")
+
 # Queue Manager
-queue_manager = QueueManager(DOWNLOADS_DIR)
+queue_manager = QueueManager(DOWNLOADS_DIR, CACHE_DIR)
 
 templates = Jinja2Templates(directory="templates")
 
@@ -1024,16 +1031,19 @@ class DownloadRequest(pydantic.BaseModel):
     title: str
     format: str = "mp3" # mp3 or mp4
     type: str = "video" # video or playlist
+    is_cache: bool = False
 
 @app.post("/api/download")
 async def start_download(job: DownloadRequest):
     # For now, we only support single video downloads in MVP
-    job_id = queue_manager.add_job(job.id, job.title, job.format, job.type)
+    job_id = queue_manager.add_job(job.id, job.title, job.format, job.type, job.is_cache)
     return {"status": "queued", "job_id": job_id}
 
 @app.get("/api/downloads")
 async def get_downloads():
-    return queue_manager.get_jobs()
+    jobs = queue_manager.get_jobs()
+    # Filter out cache jobs from public list
+    return [j for j in jobs if not j.get('is_cache', False)]
 
 @app.get("/api/download/status/{job_id}")
 async def get_download_status(job_id: str):

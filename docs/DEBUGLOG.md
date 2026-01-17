@@ -161,3 +161,13 @@ Reverted `base.html` to the known stable state (approx Step 2502). This restored
      - 在 `switchToProxyPlayer` 中實作 `videoEl.onended` 以支援自動連播，並在下載結束時清除超時定時器。
      - 在 `switchToProxyPlayer` 銷毀播放器後，重新抓取並隱藏 `youtube-iframe` 以釋放控制列點擊權。
      - 恢復 `openPlayer` 中的播放清單索引追蹤功能。
+
+## 2026-01-18: Download Optimization & UI Fixes
+- **Problem**: Repeated downloads of abnormal videos caused duplication in manager and wasted bandwidth.
+- **Problem**: UI "ghost bar" in description block and spacing issues in playlist section.
+- **Solution**:
+    - Implemented a dual-directory system: `downloads/` for user saves, `cache/` for proxy streaming.
+    - Added LRU eviction (100MB) for `cache/`.
+    - Implemented intelligent file reuse: Play requests check both dirs; Download requests check cache to copy instead of re-downloading.
+    - Updated `QueueManager` to dedup active jobs in memory.
+    - Cleaned up UI: Removed toggles, reduced margins, used absolute positioning for description toggle.

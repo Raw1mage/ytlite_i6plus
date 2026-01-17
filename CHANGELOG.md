@@ -2,7 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-01-18
+## [0.3.1] - 2026-01-18
+### Added
+- **Smart Cache System**: Implemented dedicated `/cache` directory with 100MB LRU eviction.
+- **File Reuse**: System checks both downloads and cache to prevent redundant downloads.
+- **Job Deduplication**: Prevents duplicate entries in download manager.
+
+### Changed
+- **UI Layout**: 
+    - Moved "Next Up" section upwards (zero gap).
+    - Removed collapse toggle for "Next Up" (always visible).
+    - Changed description toggle to floating absolute position.
+- **API**: Filtered out cache jobs from `/api/downloads`.
+
+## [0.3.0] - 2026-01-18
 
 ### Fixed
 - **Proxy Player**: Fixed download timeout notification showing up falsely after successful playback.

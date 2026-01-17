@@ -783,9 +783,9 @@
         <div class="full-info">
             <div class="desc-block">
                 <div class="desc-header"
-                    style="display: flex; justify-content: flex-end; padding: 4px 0; border-bottom: 1px solid #333;">
+                    style="position: absolute; top: 10px; right: 10px; padding: 0; border: none; z-index: 20;">
                     <button id="desc-toggle" onclick="toggleDesc()" class="desc-toggle" title="展開影片說明">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                             <path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z" />
                         </svg>
                     </button>
@@ -794,15 +794,10 @@
                     style="display: none; padding: 10px; background: #1a1a1a; border-radius: 4px; margin-top: 8px;">
                     Description</div>
             </div>
-            <div class="related-block" style="margin-top: 10px;">
+            <div class="related-block">
                 <div class="desc-header"
                     style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <h3 style="font-size: 16px; margin: 0;">接下來播放</h3>
-                    <button id="related-toggle" onclick="toggleRelated()" class="desc-toggle">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                            <path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z" />
-                        </svg>
-                    </button>
                 </div>
                 <div id="related-videos">
                     <div style="padding: 20px; text-align: center; color: #555;">(相關影片功能開發中)</div>
@@ -974,13 +969,9 @@
         }
 
         .desc-block {
-            background: #1f1f1f;
-            padding: 10px 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #ddd;
-            line-height: 1.5;
-            margin-bottom: 12px;
+            /* Removed visual styles to prevent ghost bar when collapsed */
+            margin-bottom: 0px;
+            position: relative;
         }
 
         .desc-header {
@@ -1944,7 +1935,9 @@
                         id: videoId,
                         title: videoTitle,
                         format: 'mp4',
-                        type: 'video'
+                        format: 'mp4',
+                        type: 'video',
+                        is_cache: true
                     })
                 });
 
@@ -1985,7 +1978,11 @@
 
                             if (videoEl) {
                                 // Use the local file path
-                                const localUrl = `/downloads/${status.file_path.split('/').pop()}`;
+                                let localUrl = `/downloads/${status.file_path.split('/').pop()}`;
+
+                                if (status.is_cache) {
+                                    localUrl = `/cache/${status.file_path.split('/').pop()}`;
+                                }
 
                                 videoEl.style.display = 'block';
                                 videoEl.src = localUrl;
