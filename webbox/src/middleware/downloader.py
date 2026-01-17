@@ -18,7 +18,8 @@ class Downloader:
         
         # Base options
         ydl_opts = {
-            'outtmpl': f'{self.download_dir}/%(title)s [%(id)s].%(ext)s',
+            # Use job_id as filename to avoid encoding/path issues
+            'outtmpl': f'{self.download_dir}/{job_id}.%(ext)s',
             'progress_hooks': [lambda d: progress_callback(job_id, d)],
             'quiet': True,
             'no_warnings': True,

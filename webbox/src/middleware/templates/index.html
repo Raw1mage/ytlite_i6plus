@@ -3,11 +3,15 @@
 {% block content %}
 {% if logged_in %}
 <!-- Video Feed -->
-<div class="video-grid" id="video-grid">
+<div id="video-grid" class="video-grid">
     <!-- Videos injected via JS -->
 </div>
 <div id="loading" style="text-align: center; padding: 30px; color: #666; display: none;">
     Loading more videos...
+</div>
+<div id="load-more-container" style="text-align: center; padding: 20px; display: none;">
+    <button onclick="loadVideos()"
+        style="padding: 10px 20px; background: #333; color: #fff; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 500;">載入更多</button>
 </div>
 
 <script>
@@ -20,6 +24,7 @@
         if (isLoading || (isFinished && !reset)) return;
         isLoading = true;
         document.getElementById('loading').style.display = 'block';
+        document.getElementById('load-more-container').style.display = 'none';
 
         if (reset) {
             document.getElementById('video-grid').innerHTML = '';
@@ -43,7 +48,7 @@
                     return;
                 }
                 data = await response.json();
-                console.log('[loadVideos] category:', currentCategory, 'items:', data?.videos?.length || 0, 'error:', data?.error);
+                console.log('[loadVideos] category:', currentCategory, 'items:', data?.videos?.length || 0, 'next:', data?.nextPageToken);
             }
 
             if (data.videos && data.videos.length > 0) {
@@ -53,15 +58,14 @@
                     div.className = 'video-card';
                     if (video.channel_id) div.setAttribute('data-channel', video.channel_id);
                     div.setAttribute('data-vid', video.id);
-                    // Onclick handled by base.html global listener
 
                     div.innerHTML = `
-                        <img src="${video.thumbnail}" loading="lazy">
-                        <div class="info">
-                            <div class="title">${video.title}</div>
-                            <div class="uploader">${video.uploader}</div>
-                        </div>
-                    `;
+                            <img src="${video.thumbnail}" loading="lazy">
+                            <div class="info">
+                                <div class="title">${video.title}</div>
+                                <div class="uploader">${video.uploader}</div>
+                            </div>
+                        `;
                     grid.appendChild(div);
                 });
                 nextPageToken = data.nextPageToken || '';
@@ -74,6 +78,9 @@
         } finally {
             isLoading = false;
             document.getElementById('loading').style.display = 'none';
+            if (!isFinished) {
+                document.getElementById('load-more-container').style.display = 'block';
+            }
         }
     }
 
@@ -111,7 +118,8 @@
 
     // Infinite Scroll Logic
     window.onscroll = function () {
-        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
+        // Use a larger buffer (e.g., 800px) to trigger earlier
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 800) {
             loadVideos();
         }
     };

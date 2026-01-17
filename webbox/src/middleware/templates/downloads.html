@@ -124,7 +124,16 @@
 
 <div class="downloads-header">
     <h2 style="margin:0;">Downloads</h2>
-    <div style="margin-left:auto; font-size:13px; color:#777;">Auto-refreshing</div>
+    <div style="margin-left:auto; display:flex; gap:10px; align-items: center;">
+        <button id="btn-set-folder" onclick="setDownloadFolder()"
+            style="background:#444; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">📂
+            設定下載目錄</button>
+        <button onclick="downloadAll(event)"
+            style="background:#4caf50; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">全部存檔</button>
+        <button onclick="clearFinished(event)"
+            style="background:#555; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Clear
+            Finished</button>
+    </div>
 </div>
 
 <div id="downloads-container" class="downloads-list">
@@ -134,14 +143,121 @@
 
 <script>
     let pollInterval = null;
+    let currentJobs = [];
 
+    async function getSavedHandle() {
+        try {
+            const req = indexedDB.open('ytlite_v3_db', 1);
+            const db = await new Promise((res) => { req.onsuccess = () => res(req.result); req.onerror = () => res(null); });
+            if (!db) return null;
+            const tx = db.transaction('settings', 'readonly');
+            const store = tx.objectStore('settings');
+            return await new Promise((res) => {
+                const r = store.get('download_dir');
+                r.onsuccess = () => res(r.result);
+                r.onerror = () => res(null);
+            });
+        } catch (e) { return null; }
+    }
+
+    async function verifyPermission(handle) {
+        if (!handle) return false;
+        const opts = { mode: 'readwrite' };
+        const current = await handle.queryPermission(opts);
+        if (current === 'granted') return true;
+
+        return new Promise((resolve) => {
+            showConfirm('授權請求', '為了實現「自動靜默下載」，請在稍後的瀏覽器系統提示中點擊「允許」。', async (yes) => {
+                if (yes) {
+                    try {
+                        const result = await handle.requestPermission(opts);
+                        resolve(result === 'granted');
+                    } catch (e) {
+                        resolve(false);
+                    }
+                } else {
+                    resolve(false);
+                }
+            });
+        });
+    }
+
+    async function setDownloadFolder() {
+        try {
+            if (!window.showDirectoryPicker) {
+                return showAlert('提示', '您的瀏覽器不支持直接存取文件夾，請手動下載。');
+            }
+            const handle = await window.showDirectoryPicker();
+            if (await verifyPermission(handle)) {
+                window.downloadDirHandle = handle;
+                // Save to IDB
+                const req = indexedDB.open('ytlite_v3_db', 1);
+                req.onsuccess = () => {
+                    const db = req.result;
+                    const tx = db.transaction('settings', 'readwrite');
+                    tx.objectStore('settings').put(handle, 'download_dir');
+                };
+
+                const btn = document.getElementById('btn-set-folder');
+                if (btn) {
+                    btn.innerText = `📁 已選: ${handle.name}`;
+                    btn.style.background = '#2ba640';
+                }
+                showToast('已設定下載目錄');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // Auto-load handle
+    (async () => {
+        const handle = await getSavedHandle();
+        if (handle) {
+            window.downloadDirHandle = handle;
+            setTimeout(() => {
+                const btn = document.getElementById('btn-set-folder');
+                if (btn) {
+                    btn.innerText = `📁 已選: ${handle.name}`;
+                    btn.style.background = '#2ba640';
+                }
+            }, 500);
+        }
+    })();
+
+    let activeAutoSaves = new Set();
     async function fetchDownloads() {
         try {
             const res = await fetch('/api/downloads');
             const jobs = await res.json();
+            currentJobs = jobs; // Store globally
             renderDownloads(jobs);
+
+            if (window.downloadDirHandle) {
+                const readyJobs = jobs.filter(j => (j.status === 'completed' || j.status === 'finished'));
+                for (const job of readyJobs) {
+                    if (!activeAutoSaves.has(job.job_id)) {
+                        autoSaveJob(job);
+                    }
+                }
+            }
         } catch (e) {
             console.error('Fetch downloads error:', e);
+        }
+    }
+
+    async function autoSaveJob(job) {
+        activeAutoSaves.add(job.job_id);
+        try {
+            const success = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
+            if (success) {
+                await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
+                fetchDownloads();
+            }
+        } catch (e) {
+            console.error("Auto save failed", e);
+        } finally {
+            activeAutoSaves.delete(job.job_id);
         }
     }
 
@@ -165,34 +281,29 @@
             if (job.status === 'downloading') {
                 meta += ` • ${job.speed || ''} • ETA: ${job.eta || ''}`;
                 statusText = `${progress.toFixed(1)}%`;
-            } else if (job.status === 'finished') {
-                statusText = 'DONE';
+            } else if (job.status === 'completed' || job.status === 'finished') {
+                statusText = 'READY';
+                statusClass = 'status-finished';
+            } else if (job.status === 'error') {
+                // Determine if it's 403
+                if (job.error && job.error.includes('403')) {
+                    meta += ` • <span style="color:#ff6b6b">YouTube Blocked (Try again later)</span>`;
+                } else {
+                    meta += ` • <span style="color:#ff6b6b">${job.error || 'Check logs'}</span>`;
+                }
             }
 
             // Actions
             let actions = '';
-            if (job.status === 'finished') {
-                const filename = job.filename ? job.filename.split('/').pop() : '';
-                // Since user mounted DOWNLOADS_DIR to /downloads
-                // We need to guess the URL or use the one provided by status if we tracked it
-                // The downloader saves as `title [id].ext`.
-                // Ideally backend returns full relative URL.
-                // For now, let's just show "Open" if we could, but browsers block local file links.
-                // We mounted /downloads in main.py, so we can link to it!
-                // Construct link: /downloads/filename
-                if (job.filename) {
-                    // The filename from yt-dlp might be absolute path. We need relative.
-                    const name = job.filename.split('/').pop();
-                    actions += `<a href="/downloads/${encodeURIComponent(name)}" target="_blank" class="dl-action-btn" style="text-decoration:none; display:inline-block;">Open</a>`;
-                }
+            if (job.status === 'completed' || job.status === 'finished') {
+                actions += `<button class="dl-action-btn" onclick="triggerFileDownload('${job.job_id}', '${job.title.replace(/'/g, "\\'")}.${job.format}')" style="background:#4caf50; margin-right:5px;">Save</button>`;
+                actions += `<button class="dl-action-btn delete" onclick="deleteJob('${job.job_id}')">Dismiss</button>`;
             } else if (['queued', 'downloading'].includes(job.status)) {
-                actions += `<button class="dl-action-btn delete" onclick="cancelJob('${job.job_id}')">Cancel</button>`;
+                actions += `<button class="dl-action-btn delete" onclick="cancelJob('${job.job_id}', event)">Cancel</button>`;
             } else {
                 actions += `<button class="dl-action-btn delete" onclick="deleteJob('${job.job_id}')">Dismiss</button>`;
             }
 
-            // Thumbnail (we don't store thumb URL in job currently, so use generic or try to fetch?)
-            // We can add thumb to add_job args later. For now, use a placeholder or generic icon.
             const thumbUrl = `https://i.ytimg.com/vi/${job.video_id}/default.jpg`;
 
             item.innerHTML = `
@@ -211,10 +322,101 @@
         });
     }
 
-    async function cancelJob(id) {
-        if (!confirm('Cancel this download?')) return;
-        await fetch(`/api/downloads/${id}`, { method: 'DELETE' }); // Using DELETE for cancel/delete for simplicity
-        fetchDownloads();
+    async function triggerFileDownload(jobId, suggestedName = '') {
+        // Silent download if handle exists
+        if (window.downloadDirHandle) {
+            try {
+                if (!await verifyPermission(window.downloadDirHandle)) {
+                    throw new Error('Permission denied');
+                }
+
+                const job = currentJobs.find(j => j.job_id === jobId);
+                const fileName = suggestedName || (job ? `${job.title}.${job.format}` : `file_${jobId}`);
+                const safeName = fileName.replace(/[<>:"/\\|?*!]/g, '_').trim();
+
+                showToast(`正在寫入: ${safeName}...`);
+
+                const response = await fetch(`/api/download_file/${jobId}`);
+                if (!response.ok) throw new Error('伺服器回傳錯誤');
+
+                const fileHandle = await window.downloadDirHandle.getFileHandle(safeName, { create: true });
+                const writable = await fileHandle.createWritable();
+
+                if (response.body.pipeTo) {
+                    await response.body.pipeTo(writable);
+                } else {
+                    const reader = response.body.getReader();
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        await writable.write(value);
+                        await new Promise(r => setTimeout(r, 0)); // Yield to event loop
+                    }
+                    await writable.close();
+                }
+
+                showToast(`✅ 已存檔: ${safeName}`);
+                return true;
+            } catch (err) {
+                console.error("Silent download error:", err);
+                showToast(`自動存檔失敗: ${err.message}，將切換至手動模式。`);
+            }
+        }
+
+        // Normal fallback
+        const url = `/api/download_file/${jobId}`;
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return true;
+    }
+
+    async function downloadAll(e) {
+        const jobs = currentJobs.filter(j => j.status === 'completed' || j.status === 'finished');
+        if (jobs.length === 0) return showAlert('提示', '沒有可下載的項目。', e);
+
+        const useSilent = !!window.downloadDirHandle;
+        showToast(useSilent ? '開始批量存檔...' : '開始批量下載...');
+
+        for (const job of jobs) {
+            try {
+                const success = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
+                if (success && useSilent) {
+                    await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
+                }
+                if (!useSilent) await new Promise(r => setTimeout(r, 1500));
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        if (useSilent) fetchDownloads();
+    }
+
+    async function clearFinished(e) {
+        showConfirm('清除確認', '確定要清除所有已完成的任務嗎？（檔案將從伺服器刪除）', async (yes) => {
+            if (!yes) return;
+            const jobs = currentJobs.filter(j => j.status === 'completed' || j.status === 'finished' || j.status === 'error');
+            showToast('正在清除任務...');
+            try {
+                await Promise.all(jobs.map(job => fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' })));
+                fetchDownloads();
+                showToast('清除完成');
+            } catch (e) {
+                console.error(e);
+                fetchDownloads();
+            }
+        }, e);
+    }
+
+    async function cancelJob(id, e) {
+        showConfirm('取消確認', '確定要取消此下載任務嗎？', async (yes) => {
+            if (!yes) return;
+            await fetch(`/api/downloads/${id}`, { method: 'DELETE' });
+            fetchDownloads();
+        }, e);
     }
 
     async function deleteJob(id) {

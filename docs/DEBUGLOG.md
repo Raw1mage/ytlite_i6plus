@@ -141,3 +141,23 @@ Reverted `base.html` to the known stable state (approx Step 2502). This restored
     - **更新 Scope**：新增 `https://www.googleapis.com/auth/youtube.force-ssl` 權限。
     - **實作後端 API**：在 `main.py` 新增 `/api/subscription_action`。
     - **修正 Import**：將 `import pydantic` 移至正確位置（類別定義之前），修復啟動錯誤。
+
+## 2026-01-18：播放器改進與代理播放修復 (✅)
+- **症狀**：
+  1. **介面問題**：影片描述區塊在收折時殘留空白（Ghost Bar）；載入動畫（轉圈圈）遮擋正常播放畫面；播放異常影片時控制列被不可見的層遮擋。
+  2. **播放問題**：YouTube 受阻影片（Error 150）無法自動切換；切換後下載超時誤報；異常與正常影片混播時出現黑屏或無法連播。
+- **原因**：
+  1. **CSS 問題**：`.desc-block` 預設 padding 導致收折不完全；`youtube-iframe` 缺少絕對定位，導致在 Aspect Ratio Hack 的容器中高度塌陷（黑屏主因）。
+  2. **邏輯問題**：
+     - `YT.Player` API 重建 iframe 時未繼承原 `div` 的 inline style。
+     - `openPlayer` 重構時丟失了播放清單上下文 (`currentPlaylistContext`)。
+     - 本地播放器 (`videoEl`) 未隱藏 `player-loader`且未實作 `onended` 事件以觸發下一首。
+     - 用於偵測下載超時的 `setTimeout` 未在下載成功或失敗時清除。
+     - `ytPlayer.destroy()` 執行後，DOM 中可能殘留舊元素或生成新元素遮擋 UI。
+- **處置**：
+  - **CSS 修正**：移除 `.desc-block` 的背景與邊距樣式；在 CSS 中強制 `#youtube-iframe` 為 `position: absolute`，確保重建後樣式正確。
+  - **JS 邏輯**：
+     - 在 `onPlayerReady` 與 `onPlayerStateChange` 中強制隱藏載入動畫。
+     - 在 `switchToProxyPlayer` 中實作 `videoEl.onended` 以支援自動連播，並在下載結束時清除超時定時器。
+     - 在 `switchToProxyPlayer` 銷毀播放器後，重新抓取並隱藏 `youtube-iframe` 以釋放控制列點擊權。
+     - 恢復 `openPlayer` 中的播放清單索引追蹤功能。

@@ -50,13 +50,14 @@ class QueueManager:
         if job_id in self.jobs:
             # Try to delete file
             job = self.jobs[job_id]
-            if job.get('filename'):
+            fpath = job.get('file_path') or job.get('filename')
+            if fpath:
                 import os
                 try:
-                    if os.path.exists(job['filename']):
-                        os.remove(job['filename'])
+                    if os.path.exists(fpath):
+                        os.remove(fpath)
                 except Exception as e:
-                    print(f"Error deleting file {job['filename']}: {e}")
+                    print(f"Error deleting file {fpath}: {e}")
             
             del self.jobs[job_id]
 
@@ -78,8 +79,16 @@ class QueueManager:
                 )
                 
                 if success:
-                    self.jobs[job_id]['status'] = 'finished'
+                    self.jobs[job_id]['status'] = 'completed'
                     self.jobs[job_id]['progress'] = 100
+                    
+                    # Set final file path explicitly
+                    ext = 'mp3' if self.jobs[job_id]['format'] == 'mp3' else 'mp4'
+                    # Ensure path matches what downloader produced
+                    final_path = f"{self.downloader.download_dir}/{job_id}.{ext}"
+                    self.jobs[job_id]['file_path'] = final_path
+                    self.jobs[job_id]['filename'] = final_path
+                    
                 else:
                     self.jobs[job_id]['status'] = 'error'
                     self.jobs[job_id]['error'] = error

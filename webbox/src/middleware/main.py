@@ -1,11 +1,13 @@
 from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from starlette.background import BackgroundTask
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 import httpx
 import os
 import json
+from googleapiclient.errors import HttpError
 import google_auth_oauthlib.flow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleRequest
@@ -272,27 +274,36 @@ async def logout(request: Request):
 
 from googleapiclient.discovery import build
 
-def fetch_subscriptions_internal(creds, max_results=50):
+def fetch_subscriptions_internal(credentials, max_results=500):
+    """Fetch user subscriptions from YouTube API."""
     try:
-        service = build('youtube', 'v3', credentials=creds)
-        response = service.subscriptions().list(
-            part="snippet",
-            mine=True,
-            maxResults=max_results,
-            order="alphabetical"
-        ).execute()
+        service = build('youtube', 'v3', credentials=credentials)
+        items = []
+        next_page_token = None
         
-        subs = []
-        for item in response.get("items", []):
-            snippet = item["snippet"]
-            subs.append({
-                "channelId": snippet["resourceId"]["channelId"],
-                "title": snippet["title"],
-                "thumbnail": snippet["thumbnails"]["default"]["url"]
-            })
-        return subs
+        while len(items) < max_results:
+            request = service.subscriptions().list(
+                part="snippet",
+                mine=True,
+                maxResults=min(50, max_results - len(items)),
+                pageToken=next_page_token
+            )
+            response = request.execute()
+            
+            for item in response.get('items', []):
+                items.append({
+                    "title": item['snippet']['title'],
+                    "channelId": item['snippet']['resourceId']['channelId'],
+                    "thumbnail": item['snippet']['thumbnails']['default']['url']
+                })
+            
+            next_page_token = response.get('nextPageToken')
+            if not next_page_token:
+                break
+                
+        return items
     except Exception as e:
-        print(f"Sub Error: {e}")
+        print(f"Error fetching subscriptions: {e}")
         return []
 
 @app.get("/api/subscriptions")
@@ -342,6 +353,27 @@ async def subscription_action(request: Request, body: SubscriptionAction):
                 service.subscriptions().delete(id=item['id']).execute()
         
         return {"status": "success"}
+    except HttpError as e:
+        # Robustly check for subscriptionDuplicate
+        is_duplicate = False
+        try:
+            content = e.content.decode() if isinstance(e.content, bytes) else str(e.content)
+            if "subscriptionDuplicate" in content:
+                is_duplicate = True
+            else:
+                error_details = json.loads(content)
+                reason = error_details.get("error", {}).get("errors", [{}])[0].get("reason")
+                if reason == "subscriptionDuplicate":
+                    is_duplicate = True
+        except:
+            if "subscriptionDuplicate" in str(e):
+                is_duplicate = True
+
+        if is_duplicate:
+            return {"status": "success", "note": "Already subscribed"}
+            
+        print(f"Sub Action API Error: {e}")
+        return {"error": str(e)}
     except Exception as e:
         print(f"Sub Action Error: {e}")
         return {"error": str(e)}
@@ -759,14 +791,19 @@ async def get_stream_proxy(request: Request, v: str):
             streams = data.get('formatStreams', [])
             best_stream = None
             
-            # Simple Selection Strategy: Best MP4 standard (audio+video)
-            # Invidious usually provides 'formatStreams' which are combined.
+            # Try formatStreams (combined)
             for s in streams:
                 if s.get('container') == 'mp4':
                     best_stream = s.get('url')
-                    # If we find 720p, take it and break? Or try to find exact match?
-                    # Let's just take the first MP4 for now (usually sorted by quality)
                     break 
+            
+            # If no combined streams, try adaptive (will only be video or audio, but better than nothing)
+            if not best_stream:
+                adaptive = data.get('adaptiveFormats', [])
+                for a in adaptive:
+                    if a.get('container') == 'mp4' and a.get('type', '').startswith('video'):
+                        best_stream = a.get('url')
+                        break
             
             # Metadata for UI
             info = {
@@ -801,15 +838,80 @@ async def get_stream_proxy(request: Request, v: str):
             if not best_stream:
                  return {"error": "No suitable stream found"}
             
+            # Proxy the stream via our own server to bypass IP/Domain restrictions
+            import urllib.parse
+            encoded_url = urllib.parse.quote(best_stream)
+            proxied_url = f"/api/stream_proxy?url={encoded_url}"
+
             return {
-                "stream_url": best_stream,
+                "stream_url": proxied_url,
                 "info": info,
-                "mime_type": "video/mp4", # Assumption
+                "mime_type": "video/mp4",
                 "related_videos": related
             }
 
         except Exception as e:
             return {"error": str(e)}
+
+@app.get("/api/stream_proxy")
+async def stream_proxy(url: str, request: Request):
+    """
+    Proxy video stream to bypass CORS and IP restrictions.
+    """
+    import sys
+    print(f"[Proxy] Request for: {url[:80]}...", flush=True)
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Referer": "https://www.youtube.com/",
+    }
+    
+    range_header = request.headers.get("Range")
+    if range_header:
+        headers["Range"] = range_header
+        print(f"[Proxy] Range: {range_header}", flush=True)
+
+    async def generate():
+        client = httpx.AsyncClient(timeout=30.0, follow_redirects=True)
+        try:
+            print(f"[Proxy] Connecting...", flush=True)
+            async with client.stream("GET", url, headers=headers) as resp:
+                print(f"[Proxy] Status: {resp.status_code}", flush=True)
+                
+                if resp.status_code >= 400:
+                    print(f"[Proxy] Error: {resp.status_code}", flush=True)
+                    yield b""
+                    return
+                
+                chunk_num = 0
+                async for chunk in resp.aiter_bytes(chunk_size=64*1024):
+                    chunk_num += 1
+                    if chunk_num == 1:
+                        print(f"[Proxy] Streaming started, first chunk: {len(chunk)} bytes", flush=True)
+                    yield chunk
+                    
+                print(f"[Proxy] Complete: {chunk_num} chunks", flush=True)
+        except Exception as e:
+            print(f"[Proxy] Error: {e}", flush=True)
+            yield b""
+        finally:
+            await client.aclose()
+    
+    # CORS headers to allow browser access
+    response_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Range",
+        "Accept-Ranges": "bytes",
+        "Content-Type": "video/mp4",
+    }
+    
+    print(f"[Proxy] Returning StreamingResponse", flush=True)
+    return StreamingResponse(
+        generate(),
+        media_type="video/mp4",
+        headers=response_headers
+    )
 
 @app.get("/manage/subscriptions", response_class=HTMLResponse)
 async def manage_subscriptions(request: Request):
@@ -933,6 +1035,17 @@ async def start_download(job: DownloadRequest):
 async def get_downloads():
     return queue_manager.get_jobs()
 
+@app.get("/api/download/status/{job_id}")
+async def get_download_status(job_id: str):
+    """Get status of a specific download job"""
+    jobs = queue_manager.get_jobs()
+    job = next((j for j in jobs if j['job_id'] == job_id), None)
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    return job
+
 @app.delete("/api/downloads/{job_id}")
 async def cancel_download(job_id: str):
     queue_manager.cancel_job(job_id)
@@ -945,21 +1058,31 @@ async def download_file(job_id: str):
     jobs = queue_manager.get_jobs()
     job = next((j for j in jobs if j['job_id'] == job_id), None)
     
-    if not job or not job.get('filename'):
-        # Fallback: check if we just have the file not tracked? 
-        # But MVP relies on job state.
-        raise HTTPException(status_code=404, detail="File not found or job expired")
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
         
-    file_path = job['filename']
-    if not os.path.exists(file_path):
+    # Check for file path (prefer 'file_path', fallback to 'filename')
+    file_path = job.get('file_path') or job.get('filename')
+
+    if not file_path or not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File deleted from server")
 
-    # Determine filename for user
-    filename = os.path.basename(file_path)
+    # Determine friendly filename for user
+    # Use title but sanitize it slightly to be safe
+    raw_title = job.get('title', 'download')
+    # Keep alphanumeric, spaces, dashes, underscores, and dots (except leading dots)
+    safe_chars = "".join([c for c in raw_title if c.isalnum() or c in (' ', '-', '_', '.', '(', ')', '[', ']')])
+    safe_title = safe_chars.strip() or "download"
+    
+    ext = os.path.splitext(file_path)[1]
+    if not ext:
+        ext = '.mp4' # fallback
+        
+    friendly_name = f"{safe_title}{ext}"
     
     return FileResponse(
         path=file_path, 
-        filename=filename, 
+        filename=friendly_name, 
         media_type='application/octet-stream'
     )
 

@@ -1,10 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="padding: 20px; max-width: 800px; margin: 0 auto;">
-    <h2 style="margin-bottom: 20px; color: #fff;">自訂導覽列</h2>
+<div id="nav-manager-overlay"
+    style="min-height: calc(100vh - 64px); display: flex; flex-direction: column; align-items: center; padding: 20px; cursor: pointer;"
+    onclick="handleOutsideClick(event)">
+    <h2 style="margin-bottom: 20px; color: #fff; width: 100%; max-width: 800px; cursor: default;">自訂導覽列</h2>
 
-    <div style="background: #1e1e1e; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+    <div style="background: #1e1e1e; padding: 20px; border-radius: 8px; margin-bottom: 20px; width: 100%; max-width: 800px; cursor: default;"
+        onclick="event.stopPropagation()">
         <div style="margin-bottom: 15px; color: #aaa; font-size: 14px;">
             設定首頁上方的快捷按鈕。您可以修改標題和對應的搜尋關鍵字。
         </div>
@@ -19,6 +22,7 @@
         </button>
 
         <div style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button onclick="goBack()" style="background: transparent; border: 1px solid #555; color: #aaa;">取消</button>
             <button onclick="saveNav()" style="background: #cc0000; color: #fff;">儲存設定</button>
         </div>
     </div>
@@ -70,11 +74,23 @@
     }
 
     function addNavItem() {
-        navItems.push({ id: Date.now().toString(), title: '新按鈕', query: '', is_fixed: false });
+        navItems.push({ id: Date.now().toString(), title: '', query: '', is_fixed: false });
         renderNav();
     }
 
-    async function saveNav() {
+    function handleOutsideClick(e) {
+        // If clicking the overlay background
+        if (e.target.id === 'nav-manager-overlay') {
+            goBack();
+        }
+    }
+
+    function goBack() {
+        // Prefer Home if history is short? Or just home always for safer exit
+        window.location.href = '/';
+    }
+
+    async function saveNav(e) {
         try {
             const res = await fetch('/api/nav', {
                 method: 'POST',
@@ -83,9 +99,20 @@
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error);
-            alert('設定已儲存');
+
+            // Success
+            if (typeof showToast === 'function') {
+                showToast('設定已儲存');
+            } else {
+                showAlert('成功', '設定已儲存');
+            }
+
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 500);
+
         } catch (e) {
-            alert('儲存失敗: ' + e.message);
+            showAlert('儲存失敗', e.message);
         }
     }
 
