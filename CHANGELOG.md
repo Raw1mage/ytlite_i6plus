@@ -1,6 +1,10 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.3.3] - 2026-01-18
+### Added
+- **Dynamic Playlist**: Automatically generates a playlist context when a video is played from any grid (Search Results, Channel Videos, History, etc.), enabling continuous auto-play of the visible list.
+
 ## [0.3.2] - 2026-01-18
 ### Added
 - **Range Selection**: Implemented `Shift+Click` functionality to select multiple video cards in a range (A to B) in the video list.

@@ -1212,6 +1212,45 @@
                 } else {
                     // Normal Click -> Open Player
                     // Call openPlayer
+                    // Normal Click -> Open Player
+                    // Construct Playlist Context from current view
+                    const container = card.closest('.video-grid');
+                    let startContext = null;
+
+                    if (container) {
+                        const allCards = Array.from(container.querySelectorAll('.video-card'));
+                        const playlistVideos = allCards.map(c => {
+                            const cVid = c.getAttribute('data-vid');
+                            if (!cVid) return null;
+
+                            const cTitleEl = c.querySelector('.title');
+                            const cTitle = cTitleEl ? cTitleEl.innerText : 'Untitled';
+
+                            const cAuthorEl = c.querySelector('.uploader');
+                            const cUploader = cAuthorEl ? cAuthorEl.innerText : 'Unknown';
+
+                            const cImg = c.querySelector('img');
+                            const cThumb = cImg ? cImg.src : '';
+
+                            const cChannel = c.getAttribute('data-channel') || '';
+
+                            return {
+                                id: cVid,
+                                title: cTitle,
+                                uploader: cUploader,
+                                thumbnail: cThumb,
+                                channel_id: cChannel
+                            };
+                        }).filter(v => v !== null);
+
+                        if (playlistVideos.length > 0) {
+                            startContext = {
+                                videos: playlistVideos,
+                                list: 'dynamic_result'
+                            };
+                        }
+                    }
+
                     if (typeof openPlayer === 'function') {
                         openPlayer({
                             id: vid,
@@ -1219,7 +1258,7 @@
                             uploader: uploader,
                             thumbnail: thumb,
                             channel_id: channelId
-                        });
+                        }, startContext);
                     }
                 }
             }
