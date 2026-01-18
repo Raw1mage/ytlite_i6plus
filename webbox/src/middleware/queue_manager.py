@@ -181,10 +181,21 @@ class QueueManager:
                     self.jobs[job_id]['status'] = 'completed'
                     self.jobs[job_id]['progress'] = 100
                     
-                    # Set final file path explicitly
-                    ext = 'mp3' if job['format'] == 'mp3' else 'mp4'
-                    final_path = os.path.join(target_dir, f"{job['video_id']}.{ext}")
-                    
+                    # Set final file path explicitly by finding the actual file
+                    # yt-dlp might output .webm or .mkv if ffmpeg is missing or merge failed
+                    if job['format'] == 'mp3':
+                        final_path = os.path.join(target_dir, f"{job['video_id']}.mp3")
+                    else:
+                        # Search for video file
+                        final_path = None
+                        for f in os.listdir(target_dir):
+                            if f.startswith(job['video_id'] + '.'):
+                                final_path = os.path.join(target_dir, f)
+                                break
+                        if not final_path:
+                            # Fallback assume mp4
+                            final_path = os.path.join(target_dir, f"{job['video_id']}.mp4")
+
                     self.jobs[job_id]['file_path'] = final_path
                     self.jobs[job_id]['filename'] = final_path
                     

@@ -1,0 +1,33 @@
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/28d4c4c2-9e82-4c9b-a63b-f860308e3d09
+[25152:25152:0118/155115.152250:ERROR:dbus/object_proxy.cc:573] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+Fontconfig error: Cannot load default config file: File not found
+[25152:25152:0118/155115.261143:ERROR:mojo/public/cpp/bindings/lib/interface_endpoint_client.cc:732] Message 0 rejected by interface blink.mojom.WidgetHost
+[25197:25197:0118/155115.498185:ERROR:components/viz/service/main/viz_main_impl.cc:189] Exiting GPU process due to errors during initialization
+[25248:7:0118/155115.587398:ERROR:gpu/ipc/client/command_buffer_proxy_impl.cc:122] ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer.
+[25152:25189:0118/155116.622921:ERROR:google_apis/gcm/engine/registration_request.cc:292] Registration response error message: DEPRECATED_ENDPOINT
+Created TensorFlow Lite XNNPACK delegate for CPU.
+[25152:25189:0118/155140.634416:ERROR:google_apis/gcm/engine/registration_request.cc:292] Registration response error message: DEPRECATED_ENDPOINT
+[25152:25189:0118/155240.066341:ERROR:google_apis/gcm/engine/registration_request.cc:292] Registration response error message: DEPRECATED_ENDPOINT
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/5937f259-e331-47ff-80ee-03d6c605776a
+[26169:26169:0118/155253.611568:ERROR:dbus/object_proxy.cc:573] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+Created TensorFlow Lite XNNPACK delegate for CPU.
+Fontconfig error: Cannot load default config file: File not found
+[26169:26169:0118/155253.671849:ERROR:mojo/public/cpp/bindings/lib/interface_endpoint_client.cc:732] Message 0 rejected by interface blink.mojom.WidgetHost
+[26169:26196:0118/155256.433275:ERROR:google_apis/gcm/engine/registration_request.cc:292] Registration response error message: QUOTA_EXCEEDED
+[26169:26196:0118/155256.482334:ERROR:google_apis/gcm/engine/registration_request.cc:292] Registration response error message: QUOTA_EXCEEDED
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/56ba7692-77ab-4fef-9dad-7a5fbbf63705
+[26612:26612:0118/155341.907326:ERROR:dbus/object_proxy.cc:573] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+Created TensorFlow Lite XNNPACK delegate for CPU.
+[26612:26612:0118/155342.066286:ERROR:mojo/public/cpp/bindings/lib/interface_endpoint_client.cc:732] Message 0 rejected by interface blink.mojom.WidgetHost
+[26656:26656:0118/155342.549375:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[26612:26643:0118/155344.970697:ERROR:google_apis/gcm/engine/registration_request.cc:292] Registration response error message: QUOTA_EXCEEDED
+[26656:26656:0118/155350.887473:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[26656:26656:0118/155421.696187:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[26656:26656:0118/161314.778462:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[26656:26656:0118/172251.231832:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[26656:26656:0118/182749.133124:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[26656:26656:0118/182750.837726:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[26656:26656:0118/182752.059258:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted

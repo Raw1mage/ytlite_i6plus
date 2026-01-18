@@ -804,19 +804,10 @@
         <!-- Global Player Overlay (Moved from index.html) -->
         <div id="player-overlay" class="overlay-container">
             <div id="player-video-container" class="video-section">
-                <div class="video-wrapper" onclick="if(window.isMinimized) toggleMiniPlayer(event)">
-                    <button id="btn-minimize" onclick="toggleMiniPlayer(event)" class="float-btn">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                        </svg>
-                    </button>
+                <div class="video-wrapper">
+                    <!-- Minimize button removed -->
                     <button class="pip-close-btn" onclick="closePlayer(event)">×</button>
-                    <button id="btn-immersive" onclick="toggleImmersiveMode(event)"
-                        style="position: absolute; bottom: 0; right: 0; width: 48px; height: 48px; background: transparent; border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2000; -webkit-tap-highlight-color: transparent;">
-                        <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
-                        </svg>
-                    </button>
+                    <!-- Custom Immersive Button removed as native controls are now visible -->
                     <div id="player-loader"
                         style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 14px; text-align: center; pointer-events: none;">
                         <div class="spinner"
@@ -892,10 +883,10 @@
             .overlay-container {
                 display: none;
                 position: fixed;
-                top: 104px;
+                top: 112px;
                 left: 0;
                 width: 100%;
-                height: calc(100% - 104px);
+                height: calc(100% - 112px);
                 background: #121212;
                 z-index: 900;
                 flex-direction: column;
@@ -1719,6 +1710,10 @@
             }
 
             function closePlayerLogic() {
+                // Show Secondary Header
+                const secHeader = document.querySelector('.secondary-header');
+                if (secHeader) secHeader.style.display = 'flex';
+
                 const overlay = document.getElementById('player-overlay');
                 const iframe = document.getElementById('youtube-iframe');
                 overlay.style.display = 'none';
@@ -1781,6 +1776,36 @@
                 }
             }
 
+            // --- Auto-Hide Controls Logic for Immersive Button ---
+            let controlsTimeout;
+            function showImmersiveControls() {
+                const btn = document.getElementById('btn-immersive');
+                if (!btn) return;
+
+                // Show button
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+
+                // Clear existing timer
+                if (controlsTimeout) clearTimeout(controlsTimeout);
+
+                // Set new timer to hide after 1 second
+                controlsTimeout = setTimeout(() => {
+                    btn.style.opacity = '0';
+                    btn.style.pointerEvents = 'none';
+                }, 1000);
+            }
+
+            // Attach listeners to video wrapper to trigger showControls
+            document.addEventListener('DOMContentLoaded', () => {
+                const wrapper = document.querySelector('.video-wrapper');
+                if (wrapper) {
+                    ['click', 'touchstart', 'mousemove'].forEach(evt => {
+                        wrapper.addEventListener(evt, () => showImmersiveControls());
+                    });
+                }
+            });
+
             // Global playlist context
             let currentPlaylistContext = null;
             let currentVideoIndex = -1;
@@ -1835,9 +1860,12 @@
             }
 
             async function openPlayer(video, context) {
+                // Hide Secondary Header
+                const secHeader = document.querySelector('.secondary-header');
+                if (secHeader) secHeader.style.display = 'none';
+
                 // Force full screen mode
                 const overlay = document.getElementById('player-overlay');
-                overlay.classList.remove('minimized');
                 overlay.style.display = 'flex';
                 document.body.style.overflow = 'hidden';
 
@@ -1953,6 +1981,10 @@
                     iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
                     iframe.setAttribute('allowfullscreen', 'true');
                     wrapper.appendChild(iframe);
+
+                    // Hide main Immersive Button for Online Player (Native button handles it)
+                    const immersiveBtn = document.getElementById('btn-immersive');
+                    if (immersiveBtn) immersiveBtn.style.display = 'none';
 
                     if (typeof YT !== 'undefined' && YT.Player) {
                         ytPlayer = new YT.Player('youtube-iframe', {
@@ -2221,11 +2253,17 @@
                                     ytPlayer = null;
                                 }
 
-                                // Re-fetch element in case destroy() modified DOM
+                                // Hide iframe
                                 const iframe = document.getElementById('youtube-iframe');
                                 if (iframe) {
+                                    iframe.src = '';
                                     iframe.style.display = 'none';
                                 }
+
+                                // Show Immersive Button for Local Player (Mobile Only)
+                                const immersiveBtn = document.getElementById('btn-immersive');
+                                const isMobile = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+                                if (immersiveBtn) immersiveBtn.style.display = isMobile ? 'flex' : 'none';
 
                                 if (videoEl) {
                                     // Use the local file path
@@ -2249,7 +2287,7 @@
                                             if (currentPlaylistContext) playNextVideo();
                                         };
                                         await videoEl.play();
-                                        await videoEl.play();
+
                                         const loader = document.getElementById('player-loader');
                                         if (loader) loader.style.display = 'none';
                                         const cover = document.getElementById('player-cover');
