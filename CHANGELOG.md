@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **Dynamic Playlist**: Automatically generates a playlist context when a video is played from any grid (Search Results, Channel Videos, History, etc.), enabling continuous auto-play of the visible list.
 
+## [0.3.4] - 2026-01-18
+### Added
+- **Continuous Fullscreen (Mobile)**: Implemented "Immersive Mode" with a custom bottom-right button to allow continuous playback across playlist videos without exiting fullscreen layout.
+- **Native Fullscreen (Local Player)**: Added support for true native fullscreen (`requestFullscreen`/`webkitEnterFullscreen`) when playing downloaded files on mobile.
+
+### Fixed
+- **Mobile Controls**: Removed the custom "Paused" overlay mask on mobile devices to ensure native YouTube player controls (progress bar, settings) are always accessible.
+- **Mobile Landscape**: Fixed video aspect ratio in landscape mode to adapt to screen height (`85vh`), preventing "flat/stretched" video rendering.
+- **Fullscreen Button**: Restored the native YouTube fullscreen button (`fs=1`) on all devices while offering the custom continuous-play button as an alternative.
+- **Z-Index Layering**: Corrected z-index stacking for local video player to ensure custom overlay buttons are clickable.
+
 ## [0.3.2] - 2026-01-18
 ### Added
 - **Range Selection**: Implemented `Shift+Click` functionality to select multiple video cards in a range (A to B) in the video list.

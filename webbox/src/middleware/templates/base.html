@@ -501,6 +501,51 @@
             background: #333;
             color: #fff;
         }
+
+        /* Sub-Header / Nav Responsiveness */
+        .auth-link {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #fff;
+            text-decoration: none;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                padding: 8px 10px;
+                /* Reduce padding */
+            }
+
+            .brand img {
+                height: 20px;
+                /* Smaller Logo */
+            }
+
+            .header-search {
+                margin: 0 5px;
+                /* Tighter margins */
+                padding: 5px 10px;
+            }
+
+            /* Hide Auth Text on Mobile */
+            .auth-text {
+                display: none;
+            }
+
+            /* Reduce gap in left container */
+            header>div:first-child {
+                gap: 5px !important;
+                margin-right: 5px !important;
+            }
+
+            /* Reduce download button margin */
+            header>button.icon-btn {
+                margin-right: 5px !important;
+            }
+
+            /* Hide Downloads text if any (icon only already) */
+        }
     </style>
 </head>
 
@@ -542,23 +587,35 @@
             </svg></button>
         <div class="user-controls" id="header-auth">
             {% if logged_in %}
-            <a href="/logout">Logout</a>
+            <a href="/logout" class="auth-link" title="Logout">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path
+                        d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
+                </svg>
+                <span class="auth-text">Logout</span>
+            </a>
             {% else %}
-            <a href="/login">Login</a>
+            <a href="/login" class="auth-link" title="Login">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
+                </svg>
+                <span class="auth-text">Login</span>
+            </a>
             {% endif %}
         </div>
     </header>
-
     {% if logged_in %}
     <div class="secondary-header">
         <div class="chips-container" id="nav-chips"
             style="margin: 0; padding: 0; display: flex; overflow-x: auto; align-items: center; gap: 8px; width: 100%; white-space: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none;">
-            <div class="chip active" onclick="loadCategory('all', this)" style="flex-shrink: 0;">全部</div>
-            <span id="dynamic-chips" style="display: flex; gap: 8px;"></span>
+            <div class="chip active" onclick="loadCategory('all', this)" style="flex-shrink: 0;">全部</div><span
+                id="dynamic-chips" style="display: flex; gap: 8px;"></span>
             <div class="chip" onclick="loadCategory('history', this)" style="flex-shrink: 0;">觀看歷史</div>
         </div>
     </div>
     {% endif %}
+
     <!-- Drawer -->
     <div class="drawer" id="app-drawer">
         <div class="drawer-header">YT Lite</div>
@@ -575,6 +632,7 @@
             {% else %}
             <a href="/login" class="drawer-item">Login</a>
             {% endif %}
+
         </div>
         {% if logged_in %}
         <div class="drawer-section">
@@ -599,9 +657,7 @@
 
     <!-- YouTube Iframe API -->
     <script src="https://www.youtube.com/iframe_api"></script>
-    <script>
-        var ytPlayer; // Global handler for YouTube Player
-    </script>
+    <script>var ytPlayer; // Global handler for YouTube Player</script>
     <script>document.addEventListener('DOMContentLoaded', function () {
             if (!(window.webkitSpeechRecognition || window.SpeechRecognition)) {
                 // Hide mic button if not supported (e.g. iOS 12, or HTTP context)
@@ -702,874 +758,1118 @@
                 style="margin: 0 15px; color: #aaa; text-decoration: none;">Terms of Service</a></div>
         <div>© 2026 YT Lite</div>
     </footer>
-    <!-- Selection Action Bar -->
-    <div id="selection-bar"
-        style="position: fixed; bottom: -80px; left: 0; width: 100%; background: #212121; border-top: 1px solid #333; padding: 15px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; transition: bottom 0.3s ease; z-index: 2000;">
-        <div style="font-weight: bold; margin-left: 10px;"><span id="selection-count">0</span>items selected
-        </div>
-        <div style="display: flex; gap: 10px;"><button onclick="autoDownloadSelected('mp3', event)"
-                style="background: #333; border: 1px solid #444; padding: 8px 16px; border-radius: 4px; color: #fff; cursor: pointer;">Download
-                MP3</button><button onclick="autoDownloadSelected('mp4', event)"
-                style="background: #cc0000; border: none; padding: 8px 16px; border-radius: 4px; color: #fff; cursor: pointer; font-weight: bold;">Download
-                MP4</button><button onclick="clearSelection()"
-                style="background: transparent; border: 1px solid #555; padding: 8px 16px; border-radius: 4px; color: #aaa; cursor: pointer;">Cancel</button>
-        </div>
-    </div>
-    <style>
-        .video-card {
-            position: relative;
-            transition: transform 0.15s, box-shadow 0.15s;
-        }
-
-        .video-card.selected {
-            box-shadow: 0 0 0 3px #cc0000;
-            transform: scale(0.98);
-        }
-
-        .video-card.selected::after {
-            content: '✓';
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: #cc0000;
-            color: white;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 14px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-        }
-    </style>
-
-    <!-- Global Player Overlay (Moved from index.html) -->
-    <div id="player-overlay" class="overlay-container">
-        <div id="player-video-container" class="video-section">
-            <div class="video-wrapper" onclick="if(window.isMinimized) toggleMiniPlayer(event)">
-                <button id="btn-minimize" onclick="toggleMiniPlayer(event)" class="float-btn">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                    </svg>
-                </button>
-                <button class="pip-close-btn" onclick="closePlayer(event)">×</button>
-                <div id="player-loader"
-                    style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 14px; text-align: center; pointer-events: none;">
-                    <div class="spinner"
-                        style="margin: 0 auto 10px; width: 30px; height: 30px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite;">
-                    </div>
-                    正在解析...
-                </div>
-                <video id="main-video" controls playsinline></video>
-                <iframe id="youtube-iframe"
-                    style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;display:none;"
-                    allowfullscreen
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+    < !-- Selection Action Bar -->
+        <div id="selection-bar"
+            style="position: fixed; bottom: -80px; left: 0; width: 100%; background: #212121; border-top: 1px solid #333; padding: 15px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; transition: bottom 0.3s ease; z-index: 2000;">
+            <div style="font-weight: bold; margin-left: 10px;"><span id="selection-count">0</span>items selected
             </div>
-            <div class="mini-info" style="display: none;">
-                <div id="mini-title" style="font-size: 14px; font-weight: 600; padding: 10px; color: #fff;">
-                    Video Title
-                </div>
-            </div>
-            <!-- Title and Meta in sticky section -->
-            <div class="player-title-meta" style="padding: 10px; background: #121212;">
-                <h2 id="player-title" style="font-size: 18px; margin: 0 0 8px 0; font-weight: 600; line-height: 1.3;">
-                    Title</h2>
-                <div style="font-size: 14px; color: #aaa;" id="player-meta">Channel • Views</div>
+            <div style="display: flex; gap: 10px;"><button onclick="autoDownloadSelected('mp3', event)"
+                    style="background: #333; border: 1px solid #444; padding: 8px 16px; border-radius: 4px; color: #fff; cursor: pointer;">Download
+                    MP3</button><button onclick="autoDownloadSelected('mp4', event)"
+                    style="background: #cc0000; border: none; padding: 8px 16px; border-radius: 4px; color: #fff; cursor: pointer; font-weight: bold;">Download
+                    MP4</button><button onclick="clearSelection()"
+                    style="background: transparent; border: 1px solid #555; padding: 8px 16px; border-radius: 4px; color: #aaa; cursor: pointer;">Cancel</button>
             </div>
         </div>
-        <div class="full-info">
-            <div class="desc-block">
-                <div class="desc-header"
-                    style="position: absolute; top: 10px; right: 10px; padding: 0; border: none; z-index: 20;">
-                    <button id="desc-toggle" onclick="toggleDesc()" class="desc-toggle" title="展開影片說明">
+        <style>
+            .video-card {
+                position: relative;
+                transition: transform 0.15s, box-shadow 0.15s;
+            }
+
+            .video-card.selected {
+                box-shadow: 0 0 0 3px #cc0000;
+                transform: scale(0.98);
+            }
+
+            .video-card.selected::after {
+                content: '✓';
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                background: #cc0000;
+                color: white;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 14px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            }
+        </style>
+
+        <!-- Global Player Overlay (Moved from index.html) -->
+        <div id="player-overlay" class="overlay-container">
+            <div id="player-video-container" class="video-section">
+                <div class="video-wrapper" onclick="if(window.isMinimized) toggleMiniPlayer(event)">
+                    <button id="btn-minimize" onclick="toggleMiniPlayer(event)" class="float-btn">
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                            <path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z" />
+                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                         </svg>
                     </button>
+                    <button class="pip-close-btn" onclick="closePlayer(event)">×</button>
+                    <button id="btn-immersive" onclick="toggleImmersiveMode(event)"
+                        style="position: absolute; bottom: 0; right: 0; width: 48px; height: 48px; background: transparent; border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2000; -webkit-tap-highlight-color: transparent;">
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                            <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
+                        </svg>
+                    </button>
+                    <div id="player-loader"
+                        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 14px; text-align: center; pointer-events: none;">
+                        <div class="spinner"
+                            style="margin: 0 auto 10px; width: 30px; height: 30px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite;">
+                        </div>
+                        正在解析...
+                    </div>
+                    <video id="main-video" controls playsinline webkit-playsinline
+                        style="width:100%; height:100%; position:absolute; top:0; left:0; z-index:1;"></video>
+                    <iframe id="youtube-iframe"
+                        style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;display:none;"
+                        allowfullscreen
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+
+                    <!-- Custom Cover to Hide YouTube Suggestions on Pause/End -->
+                    <div id="player-cover"
+                        style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:20; align-items:center; justify-content:center; flex-direction:column; color:#fff;">
+                        <div id="cover-title" style="font-size:18px; font-weight:bold; margin-bottom:15px;">已暫停
+                        </div>
+                        <button id="cover-btn"
+                            style="padding:10px 24px; background:#cc0000; color:#fff; border:none; border-radius:24px; font-size:16px; font-weight:bold; cursor:pointer;">繼續播放</button>
+                        <button onclick="document.getElementById('player-cover').style.display='none'"
+                            style="margin-top:20px; background:none; border:none; color:#aaa; font-size:12px; cursor:pointer;">隱藏遮罩</button>
+                    </div>
                 </div>
-                <div id="player-desc"
-                    style="display: none; padding: 10px; background: #1a1a1a; border-radius: 4px; margin-top: 8px;">
-                    Description</div>
+                <div class="mini-info" style="display: none;">
+                    <div id="mini-title" style="font-size: 14px; font-weight: 600; padding: 10px; color: #fff;">
+                        Video Title
+                    </div>
+                </div>
+                <!-- Title and Meta in sticky section -->
+                <div class="player-title-meta" style="padding: 10px; background: #121212;">
+                    <h2 id="player-title"
+                        style="font-size: 18px; margin: 0 0 8px 0; font-weight: 600; line-height: 1.3;">
+                        Title</h2>
+                    <div style="font-size: 14px; color: #aaa;" id="player-meta">Channel • Views</div>
+                </div>
             </div>
-            <div class="related-block">
-                <div class="desc-header"
-                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <h3 style="font-size: 16px; margin: 0;">接下來播放</h3>
+            <div class="full-info">
+                <div class="desc-block">
+                    <div class="desc-header"
+                        style="position: absolute; top: 10px; right: 10px; padding: 0; border: none; z-index: 20;">
+                        <button id="desc-toggle" onclick="toggleDesc()" class="desc-toggle" title="展開影片說明">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                                <path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="player-desc"
+                        style="display: none; padding: 10px; background: #1a1a1a; border-radius: 4px; margin-top: 8px;">
+                        Description</div>
                 </div>
-                <div id="related-videos">
-                    <div style="padding: 20px; text-align: center; color: #555;">(相關影片功能開發中)</div>
+                <div class="related-block">
+                    <div class="desc-header"
+                        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3 style="font-size: 16px; margin: 0;">接下來播放</h3>
+                    </div>
+                    <div id="related-videos">
+                        <div style="padding: 20px; text-align: center; color: #555;">(相關影片功能開發中)</div>
+                    </div>
                 </div>
+                <div style="height: 50px;"></div>
             </div>
-            <div style="height: 50px;"></div>
         </div>
-    </div>
 
-    <style>
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .overlay-container {
-            display: none;
-            position: fixed;
-            top: 104px;
-            left: 0;
-            width: 100%;
-            height: calc(100% - 104px);
-            background: #121212;
-            z-index: 900;
-            flex-direction: column;
-            overflow: hidden;
-            /* Changed from auto to hidden */
-            -webkit-overflow-scrolling: touch;
-            padding: 0;
-            /* Removed padding */
-            box-sizing: border-box;
-        }
-
-        .video-section {
-            position: sticky;
-            top: 0;
-            width: 100%;
-            background: #000;
-            z-index: 1002;
-            flex-shrink: 0;
-            transition: width 0.3s, height 0.3s;
-            min-height: 0;
-            margin: 0;
-            padding: 8px 10px 0;
-            box-sizing: border-box;
-        }
-
-        .video-wrapper {
-            position: relative;
-            width: 100%;
-            height: 0;
-            padding-bottom: 56.25%;
-            /* 16:9 Aspect Ratio */
-            max-height: 600px;
-            border-radius: 6px;
-            overflow: hidden;
-            background: #000;
-        }
-
-        #main-video {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-        }
-
-        #youtube-iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-
-        .float-btn {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.6);
-            border: none;
-            color: #fff;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1003;
-            cursor: pointer;
-        }
-
-        .full-info {
-            padding: 10px;
-            flex: 1 1 auto;
-            background: #121212;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .mini-info {
-            display: none;
-        }
-
-        .overlay-container.minimized {
-            top: auto !important;
-            bottom: 70px !important;
-            right: 15px !important;
-            left: auto !important;
-            width: 200px !important;
-            height: 112px !important;
-            background: #000;
-            border: 1px solid #333;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
-            flex-direction: column;
-            overflow: visible;
-            border-radius: 8px;
-            padding: 0;
-        }
-
-        .overlay-container.minimized .video-section {
-            width: 100%;
-            height: 100%;
-            min-height: 0;
-            border-radius: 8px;
-            overflow: hidden;
-            margin: 0;
-        }
-
-        .overlay-container.minimized .video-wrapper {
-            padding-top: 0;
-            height: 100%;
-        }
-
-        .overlay-container.minimized #main-video {
-            display: block !important;
-        }
-
-        .overlay-container.minimized .float-btn,
-        .overlay-container.minimized #player-loader,
-        .overlay-container.minimized .full-info,
-        .overlay-container.minimized .mini-info {
-            display: none !important;
-        }
-
-        .pip-close-btn {
-            display: none;
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            width: 24px;
-            height: 24px;
-            background: #cc0000;
-            color: white;
-            border: 1px solid #fff;
-            border-radius: 50%;
-            font-size: 16px;
-            font-weight: bold;
-            line-height: 22px;
-            text-align: center;
-            z-index: 2005;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-        }
-
-        .overlay-container.minimized .pip-close-btn {
-            display: block;
-        }
-
-        .desc-block {
-            /* Removed visual styles to prevent ghost bar when collapsed */
-            margin-bottom: 0px;
-            position: relative;
-        }
-
-        .desc-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            color: #aaa;
-            font-size: 12px;
-        }
-
-        .desc-toggle {
-            background: none;
-            color: #aaa;
-            border: none;
-            padding: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #player-desc {
-            white-space: pre-wrap;
-            overflow: hidden;
-        }
-
-        #player-desc.desc-clamped {
-            display: -webkit-box;
-            -webkit-line-clamp: 4;
-            line-clamp: 4;
-            -webkit-box-orient: vertical;
-        }
-
-        #player-desc.desc-expanded {
-            display: block;
-        }
-
-        /* Shared Common Styles */
-        .chips-container {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding: 5px 0;
-            margin: 0;
-            -webkit-overflow-scrolling: touch;
-            white-space: nowrap;
-        }
-
-        .chip {
-            padding: 8px 16px;
-            background: #333;
-            border: 1px solid #444;
-            border-radius: 20px;
-            color: #fff;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .chip.active {
-            background: #fff;
-            color: #000;
-            font-weight: bold;
-        }
-
-        .video-grid {
-            display: grid;
-            /* Responsive: Min 250px per card, fits as many as possible */
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 15px;
-        }
-
-        .video-card {
-            background: #1e1e1e;
-            border-radius: 8px;
-            overflow: hidden;
-            cursor: pointer;
-        }
-
-        .video-card img {
-            width: 100%;
-            aspect-ratio: 16/9;
-            object-fit: cover;
-            background: #000;
-        }
-
-        .video-card .info {
-            padding: 10px;
-        }
-
-        .video-card .title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            line-height: 1.3;
-            height: 2.6em;
-        }
-
-        .video-card .uploader {
-            font-size: 12px;
-            color: #aaa;
-        }
-
-        @media (max-width: 600px) {
-            /* .video-grid: Handled by repeat(auto-fill, minmax(250px, 1fr)) */
-        }
-    </style>
-
-    <script>
-        // Global State
-        window.isMinimized = false;
-        window.userSubscriptions = [];
-        window.userBlocklist = {}; // {id: name}
-        window.selectedVideos = new Set(); // {video_id}
-        window.lastSelectedVid = null;
-        window.videoDataCache = {}; // {id: {title, ...}} store info for downloads
-
-        // --- Auto Download Logic ---
-        async function autoDownloadSelected(fmt, e) {
-            if (window.selectedVideos.size === 0) return;
-            const ids = Array.from(window.selectedVideos);
-
-            // Clear selection immediately
-            clearSelection();
-            showToast(`正在處理 ${ids.length} 個下載項目... 請稍候。`);
-
-            for (const vid of ids) {
-                const info = window.videoDataCache[vid];
-                if (!info) continue;
-
-                try {
-                    const res = await fetch('/api/download', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            id: vid,
-                            title: info.title,
-                            format: fmt,
-                            type: 'video'
-                        })
-                    });
-                    const data = await res.json();
-                    if (data.job_id) {
-                        trackDownload(data.job_id);
-                    }
-                } catch (err) {
-                    console.error("Batch download error:", err);
+        <style>
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
                 }
             }
-        }
 
-        function trackDownload(jobId) {
-            // Already handled by the global central monitor if implemented, 
-            // but let's keep a specific one to ensure UI modal opens or background work continues.
-            // Actually, let's just make fetchDownloads run in background if any job is active.
-            if (!window.dlBgTask) {
-                window.dlBgTask = setInterval(fetchDownloads, 2000);
+            .overlay-container {
+                display: none;
+                position: fixed;
+                top: 104px;
+                left: 0;
+                width: 100%;
+                height: calc(100% - 104px);
+                background: #121212;
+                z-index: 900;
+                flex-direction: column;
+                overflow: hidden;
+                /* Changed from auto to hidden */
+                -webkit-overflow-scrolling: touch;
+                padding: 0;
+                /* Removed padding */
+                box-sizing: border-box;
             }
-        }
 
-        function triggerFileDownload(jobId) {
-            if (!jobId) return;
-            const url = `/api/download_file/${jobId}`;
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            // a.download attribute is not strictly needed if backend sends Content-Disposition
-            // but we can add it if we want. Let's rely on backend.
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
+            /* Immersive Mode CSS */
+            .video-wrapper.immersive {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                padding-bottom: 0 !important;
+                z-index: 2147483647 !important;
+                background: #000;
+            }
 
-        function showToast(text) {
-            const msg = document.createElement('div');
-            msg.innerText = text;
-            msg.style.cssText = "position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:12px 24px; border-radius:30px; z-index:3000; font-size:14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: opacity 0.5s;";
-            document.body.appendChild(msg);
-            setTimeout(() => {
-                msg.style.opacity = '0';
-                setTimeout(() => msg.remove(), 500);
-            }, 4000);
-        }
+            .video-section {
+                position: sticky;
+                top: 0;
+                width: 100%;
+                background: #000;
+                z-index: 1002;
+                flex-shrink: 0;
+                transition: width 0.3s, height 0.3s;
+                min-height: 0;
+                margin: 0;
+                padding: 8px 10px 0;
+                box-sizing: border-box;
+            }
 
-        // --- Selection Mode Logic & Universal Click Handler ---
-        document.addEventListener('click', function (e) {
-            // Check if clicked inside a video-card
-            const card = e.target.closest('.video-card');
-            if (card) {
-                const vid = card.getAttribute('data-vid');
-                if (!vid) return;
+            .video-wrapper {
+                position: relative;
+                width: 100%;
+                height: 0;
+                padding-bottom: 56.25%;
+                /* 16:9 Aspect Ratio */
+                max-height: 600px;
+                border-radius: 6px;
+                overflow: hidden;
+                background: #000;
+                margin: 0 auto;
+                /* Center it */
+            }
 
-                // Stop any other listeners (like inline onclicks if they exist)
-                // We handle everything here
+            @media (orientation: landscape) and (max-height: 600px) {
 
-                // Get Video Data from Card
-                let title = 'Untitled';
-                let uploader = 'Unknown';
-                let thumb = card.querySelector('img')?.src || '';
-                let channelId = card.getAttribute('data-channel') || '';
+                /* Fix for "Flat/Wide" video on mobile landscape */
+                .video-wrapper {
+                    width: auto !important;
+                    /* Let width shrink to fit height */
+                    height: 85vh !important;
+                    /* Use most of the screen height */
+                    padding-bottom: 0 !important;
+                    /* Remove aspect ratio hack */
+                    aspect-ratio: 16/9;
+                    /* Use modern aspect ratio */
+                    max-height: none !important;
+                }
 
-                const titleEl = card.querySelector('.title');
-                if (titleEl) title = titleEl.innerText;
-                const authorEl = card.querySelector('.uploader');
-                if (authorEl) uploader = authorEl.innerText;
+                /* Ensure scrolling is possible if content overflows */
+                .overlay-container {
+                    overflow-y: auto !important;
+                }
 
-                // Cache it
-                window.videoDataCache[vid] = {
-                    id: vid,
-                    title: title,
-                    type: 'video'
-                };
+                .video-section {
+                    position: relative !important;
+                    /* Unstick to allow scroll */
+                    height: auto !important;
+                    display: flex;
+                    justify-content: center;
+                    /* Center video horizontally */
+                    background: #000;
+                }
+            }
 
-                // Keyboard Modifiers
-                const isMulti = e.ctrlKey || e.metaKey;
-                const isRange = e.shiftKey;
-                const isSelectionActive = window.selectedVideos.size > 0;
+            #main-video {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: none;
+            }
 
-                if (isRange) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (window.lastSelectedVid) {
-                        selectRange(window.lastSelectedVid, vid);
-                    } else {
-                        toggleSelection(vid, card);
+            #youtube-iframe {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+            }
+
+            .float-btn {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                background: rgba(0, 0, 0, 0.6);
+                border: none;
+                color: #fff;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1003;
+                cursor: pointer;
+            }
+
+            .full-info {
+                padding: 10px;
+                flex: 1 1 auto;
+                background: #121212;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .mini-info {
+                display: none;
+            }
+
+            .overlay-container.minimized {
+                top: auto !important;
+                bottom: 70px !important;
+                right: 15px !important;
+                left: auto !important;
+                width: 200px !important;
+                height: 112px !important;
+                background: #000;
+                border: 1px solid #333;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
+                flex-direction: column;
+                overflow: visible;
+                border-radius: 8px;
+                padding: 0;
+            }
+
+            .overlay-container.minimized .video-section {
+                width: 100%;
+                height: 100%;
+                min-height: 0;
+                border-radius: 8px;
+                overflow: hidden;
+                margin: 0;
+            }
+
+            .overlay-container.minimized .video-wrapper {
+                padding-top: 0;
+                height: 100%;
+            }
+
+            .overlay-container.minimized #main-video {
+                display: block !important;
+            }
+
+            .overlay-container.minimized .float-btn,
+            .overlay-container.minimized #player-loader,
+            .overlay-container.minimized .full-info,
+            .overlay-container.minimized .mini-info {
+                display: none !important;
+            }
+
+            .pip-close-btn {
+                display: none;
+                position: absolute;
+                top: -8px;
+                right: -8px;
+                width: 24px;
+                height: 24px;
+                background: #cc0000;
+                color: white;
+                border: 1px solid #fff;
+                border-radius: 50%;
+                font-size: 16px;
+                font-weight: bold;
+                line-height: 22px;
+                text-align: center;
+                z-index: 2005;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            }
+
+            .overlay-container.minimized .pip-close-btn {
+                display: block;
+            }
+
+            .desc-block {
+                /* Removed visual styles to prevent ghost bar when collapsed */
+                margin-bottom: 0px;
+                position: relative;
+            }
+
+            .desc-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 8px;
+                color: #aaa;
+                font-size: 12px;
+            }
+
+            .desc-toggle {
+                background: none;
+                color: #aaa;
+                border: none;
+                padding: 4px;
+                font-size: 12px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            #player-desc {
+                white-space: pre-wrap;
+                overflow: hidden;
+            }
+
+            #player-desc.desc-clamped {
+                display: -webkit-box;
+                -webkit-line-clamp: 4;
+                line-clamp: 4;
+                -webkit-box-orient: vertical;
+            }
+
+            #player-desc.desc-expanded {
+                display: block;
+            }
+
+            /* Shared Common Styles */
+            .chips-container {
+                display: flex;
+                gap: 10px;
+                overflow-x: auto;
+                padding: 5px 0;
+                margin: 0;
+                -webkit-overflow-scrolling: touch;
+                white-space: nowrap;
+            }
+
+            .chip {
+                padding: 8px 16px;
+                background: #333;
+                border: 1px solid #444;
+                border-radius: 20px;
+                color: #fff;
+                font-size: 14px;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+
+            .chip.active {
+                background: #fff;
+                color: #000;
+                font-weight: bold;
+            }
+
+            .video-grid {
+                display: grid;
+                /* Responsive: Min 250px per card, fits as many as possible */
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 15px;
+            }
+
+            .video-card {
+                background: #1e1e1e;
+                border-radius: 8px;
+                overflow: hidden;
+                cursor: pointer;
+            }
+
+            .video-card img {
+                width: 100%;
+                aspect-ratio: 16/9;
+                object-fit: cover;
+                background: #000;
+            }
+
+            .video-card .info {
+                padding: 10px;
+            }
+
+            .video-card .title {
+                font-size: 14px;
+                font-weight: 600;
+                margin-bottom: 5px;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                line-height: 1.3;
+                height: 2.6em;
+            }
+
+            .video-card .uploader {
+                font-size: 12px;
+                color: #aaa;
+            }
+
+            @media (max-width: 600px) {
+                /* .video-grid: Handled by repeat(auto-fill, minmax(250px, 1fr)) */
+            }
+        </style>
+
+        <script>
+            // Global State
+            window.isMinimized = false;
+            window.userSubscriptions = [];
+            window.userBlocklist = {}; // {id: name}
+            window.selectedVideos = new Set(); // {video_id}
+            window.lastSelectedVid = null;
+            window.videoDataCache = {}; // {id: {title, ...}} store info for downloads
+
+            // --- Auto Download Logic ---
+            async function autoDownloadSelected(fmt, e) {
+                if (window.selectedVideos.size === 0) return;
+                const ids = Array.from(window.selectedVideos);
+
+                // Clear selection immediately
+                clearSelection();
+                showToast(`正在處理 ${ids.length} 個下載項目... 請稍候。`);
+
+                for (const vid of ids) {
+                    const info = window.videoDataCache[vid];
+                    if (!info) continue;
+
+                    try {
+                        const res = await fetch('/api/download', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id: vid,
+                                title: info.title,
+                                format: fmt,
+                                type: 'video'
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.job_id) {
+                            trackDownload(data.job_id);
+                        }
+                    } catch (err) {
+                        console.error("Batch download error:", err);
                     }
-                } else if (isMulti || isSelectionActive) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleSelection(vid, card);
-                } else {
-                    // Normal Click -> Open Player
-                    // Call openPlayer
-                    // Normal Click -> Open Player
-                    // Construct Playlist Context from current view
-                    const container = card.closest('.video-grid');
-                    let startContext = null;
+                }
+            }
 
-                    if (container) {
-                        const allCards = Array.from(container.querySelectorAll('.video-card'));
-                        const playlistVideos = allCards.map(c => {
-                            const cVid = c.getAttribute('data-vid');
-                            if (!cVid) return null;
+            function trackDownload(jobId) {
+                // Already handled by the global central monitor if implemented, 
+                // but let's keep a specific one to ensure UI modal opens or background work continues.
+                // Actually, let's just make fetchDownloads run in background if any job is active.
+                if (!window.dlBgTask) {
+                    window.dlBgTask = setInterval(fetchDownloads, 2000);
+                }
+            }
 
-                            const cTitleEl = c.querySelector('.title');
-                            const cTitle = cTitleEl ? cTitleEl.innerText : 'Untitled';
+            function triggerFileDownload(jobId) {
+                if (!jobId) return;
+                const url = `/api/download_file/${jobId}`;
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                // a.download attribute is not strictly needed if backend sends Content-Disposition
+                // but we can add it if we want. Let's rely on backend.
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
 
-                            const cAuthorEl = c.querySelector('.uploader');
-                            const cUploader = cAuthorEl ? cAuthorEl.innerText : 'Unknown';
+            function showToast(text) {
+                const msg = document.createElement('div');
+                msg.innerText = text;
+                msg.style.cssText = "position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:12px 24px; border-radius:30px; z-index:3000; font-size:14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: opacity 0.5s;";
+                document.body.appendChild(msg);
+                setTimeout(() => {
+                    msg.style.opacity = '0';
+                    setTimeout(() => msg.remove(), 500);
+                }, 4000);
+            }
 
-                            const cImg = c.querySelector('img');
-                            const cThumb = cImg ? cImg.src : '';
+            // --- Selection Mode Logic & Universal Click Handler ---
+            document.addEventListener('click', function (e) {
+                // Check if clicked inside a video-card
+                const card = e.target.closest('.video-card');
+                if (card) {
+                    const vid = card.getAttribute('data-vid');
+                    if (!vid) return;
 
-                            const cChannel = c.getAttribute('data-channel') || '';
+                    // Stop any other listeners (like inline onclicks if they exist)
+                    // We handle everything here
 
-                            return {
-                                id: cVid,
-                                title: cTitle,
-                                uploader: cUploader,
-                                thumbnail: cThumb,
-                                channel_id: cChannel
-                            };
-                        }).filter(v => v !== null);
+                    // Get Video Data from Card
+                    let title = 'Untitled';
+                    let uploader = 'Unknown';
+                    let thumb = card.querySelector('img')?.src || '';
+                    let channelId = card.getAttribute('data-channel') || '';
 
-                        if (playlistVideos.length > 0) {
-                            startContext = {
-                                videos: playlistVideos,
-                                list: 'dynamic_result'
-                            };
+                    const titleEl = card.querySelector('.title');
+                    if (titleEl) title = titleEl.innerText;
+                    const authorEl = card.querySelector('.uploader');
+                    if (authorEl) uploader = authorEl.innerText;
+
+                    // Cache it
+                    window.videoDataCache[vid] = {
+                        id: vid,
+                        title: title,
+                        type: 'video'
+                    };
+
+                    // Keyboard Modifiers
+                    const isMulti = e.ctrlKey || e.metaKey;
+                    const isRange = e.shiftKey;
+                    const isSelectionActive = window.selectedVideos.size > 0;
+
+                    if (isRange) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (window.lastSelectedVid) {
+                            selectRange(window.lastSelectedVid, vid);
+                        } else {
+                            toggleSelection(vid, card);
+                        }
+                    } else if (isMulti || isSelectionActive) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleSelection(vid, card);
+                    } else {
+                        // Normal Click -> Open Player
+                        // Call openPlayer
+                        // Normal Click -> Open Player
+                        // Construct Playlist Context from current view
+                        const container = card.closest('.video-grid');
+                        let startContext = null;
+
+                        if (container) {
+                            const allCards = Array.from(container.querySelectorAll('.video-card'));
+                            const playlistVideos = allCards.map(c => {
+                                const cVid = c.getAttribute('data-vid');
+                                if (!cVid) return null;
+
+                                const cTitleEl = c.querySelector('.title');
+                                const cTitle = cTitleEl ? cTitleEl.innerText : 'Untitled';
+
+                                const cAuthorEl = c.querySelector('.uploader');
+                                const cUploader = cAuthorEl ? cAuthorEl.innerText : 'Unknown';
+
+                                const cImg = c.querySelector('img');
+                                const cThumb = cImg ? cImg.src : '';
+
+                                const cChannel = c.getAttribute('data-channel') || '';
+
+                                return {
+                                    id: cVid,
+                                    title: cTitle,
+                                    uploader: cUploader,
+                                    thumbnail: cThumb,
+                                    channel_id: cChannel
+                                };
+                            }).filter(v => v !== null);
+
+                            if (playlistVideos.length > 0) {
+                                startContext = {
+                                    videos: playlistVideos,
+                                    list: 'dynamic_result'
+                                };
+                            }
+                        }
+
+                        if (typeof openPlayer === 'function') {
+                            openPlayer({
+                                id: vid,
+                                title: title,
+                                uploader: uploader,
+                                thumbnail: thumb,
+                                channel_id: channelId
+                            }, startContext);
                         }
                     }
-
-                    if (typeof openPlayer === 'function') {
-                        openPlayer({
-                            id: vid,
-                            title: title,
-                            uploader: uploader,
-                            thumbnail: thumb,
-                            channel_id: channelId
-                        }, startContext);
-                    }
                 }
-            }
-        }, true); // Capture phase
+            }, true); // Capture phase
 
-        function toggleSelection(vid, card) {
-            window.lastSelectedVid = vid;
-            if (window.selectedVideos.has(vid)) {
-                window.selectedVideos.delete(vid);
-                card.classList.remove('selected');
-            } else {
-                window.selectedVideos.add(vid);
-                card.classList.add('selected');
-            }
-            updateSelectionUI();
-        }
-
-        function selectRange(startId, endId) {
-            const allCards = Array.from(document.querySelectorAll('.video-card'));
-            const startIdx = allCards.findIndex(c => c.getAttribute('data-vid') === startId);
-            const endIdx = allCards.findIndex(c => c.getAttribute('data-vid') === endId);
-
-            if (startIdx === -1 || endIdx === -1) return;
-
-            const min = Math.min(startIdx, endIdx);
-            const max = Math.max(startIdx, endIdx);
-
-            for (let i = min; i <= max; i++) {
-                const card = allCards[i];
-                const vid = card.getAttribute('data-vid');
-                if (vid) {
+            function toggleSelection(vid, card) {
+                window.lastSelectedVid = vid;
+                if (window.selectedVideos.has(vid)) {
+                    window.selectedVideos.delete(vid);
+                    card.classList.remove('selected');
+                } else {
                     window.selectedVideos.add(vid);
                     card.classList.add('selected');
                 }
+                updateSelectionUI();
             }
-            updateSelectionUI();
-        }
 
-        function clearSelection() {
-            window.selectedVideos.clear();
-            document.querySelectorAll('.video-card.selected').forEach(el => el.classList.remove('selected'));
-            updateSelectionUI();
-        }
+            function selectRange(startId, endId) {
+                const allCards = Array.from(document.querySelectorAll('.video-card'));
+                const startIdx = allCards.findIndex(c => c.getAttribute('data-vid') === startId);
+                const endIdx = allCards.findIndex(c => c.getAttribute('data-vid') === endId);
 
-        function updateSelectionUI() {
-            const bar = document.getElementById('selection-bar');
-            const count = document.getElementById('selection-count');
-            count.innerText = window.selectedVideos.size;
+                if (startIdx === -1 || endIdx === -1) return;
 
-            if (window.selectedVideos.size > 0) {
-                bar.style.bottom = '0px';
-            } else {
-                bar.style.bottom = '-80px';
+                const min = Math.min(startIdx, endIdx);
+                const max = Math.max(startIdx, endIdx);
+
+                for (let i = min; i <= max; i++) {
+                    const card = allCards[i];
+                    const vid = card.getAttribute('data-vid');
+                    if (vid) {
+                        window.selectedVideos.add(vid);
+                        card.classList.add('selected');
+                    }
+                }
+                updateSelectionUI();
             }
-        }
 
-        async function downloadSelected(fmt, e) {
-            if (window.selectedVideos.size === 0) return;
-            const ids = Array.from(window.selectedVideos);
+            function clearSelection() {
+                window.selectedVideos.clear();
+                document.querySelectorAll('.video-card.selected').forEach(el => el.classList.remove('selected'));
+                updateSelectionUI();
+            }
 
-            // Submit jobs
-            for (const vid of ids) {
-                const info = window.videoDataCache[vid];
-                if (!info) continue;
+            function updateSelectionUI() {
+                const bar = document.getElementById('selection-bar');
+                const count = document.getElementById('selection-count');
+                count.innerText = window.selectedVideos.size;
 
+                if (window.selectedVideos.size > 0) {
+                    bar.style.bottom = '0px';
+                } else {
+                    bar.style.bottom = '-80px';
+                }
+            }
+
+            async function downloadSelected(fmt, e) {
+                if (window.selectedVideos.size === 0) return;
+                const ids = Array.from(window.selectedVideos);
+
+                // Submit jobs
+                for (const vid of ids) {
+                    const info = window.videoDataCache[vid];
+                    if (!info) continue;
+
+                    try {
+                        await fetch('/api/download', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id: vid,
+                                title: info.title,
+                                format: fmt,
+                                type: 'video'
+                            })
+                        });
+                    } catch (e) {
+                        console.error("Queue error", e);
+                    }
+                }
+
+                clearSelection();
+                showToast("已加入下載隊列");
+            }
+
+            // --- Drawer Logic ---
+            function toggleDrawer() {
+                const drawer = document.getElementById('app-drawer');
+                const overlay = document.getElementById('drawer-overlay');
+                if (drawer.classList.contains('open')) {
+                    closeDrawer();
+                } else {
+                    drawer.classList.add('open');
+                    overlay.classList.add('show');
+                    const subsList = document.getElementById('drawer-subs-list');
+                    if (subsList && subsList.innerHTML.includes('Loading')) fetchSubscriptions();
+                }
+            }
+            function closeDrawer() {
+                document.getElementById('app-drawer').classList.remove('open');
+                document.getElementById('drawer-overlay').classList.remove('show');
+            }
+
+            // --- Subscription Logic ---
+            async function fetchSubscriptions() {
                 try {
-                    await fetch('/api/download', {
+                    const res = await fetch('/api/subscriptions');
+                    if (res.status === 401) return;
+                    const data = await res.json();
+                    const list = document.getElementById('drawer-subs-list');
+                    list.innerHTML = '';
+                    const subs = Array.isArray(data) ? data : data.subscriptions;
+                    // Update global cache
+                    window.userSubscriptions = subs || [];
+
+                    if (Array.isArray(subs) && subs.length > 0) {
+                        subs.forEach(sub => {
+                            const safeTitle = sub.title.replace(/'/g, "\\'");
+                            const div = document.createElement('div');
+                            div.className = 'drawer-item';
+                            div.onclick = function () { loadChannel(safeTitle, sub.channelId); };
+                            div.innerHTML = `<img src="${sub.thumbnail}" loading="lazy"><div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sub.title}</div>`;
+                            list.appendChild(div);
+                        });
+                    } else {
+                        list.innerHTML = '<div style="padding:15px;color:#777;">No subscriptions found.</div>';
+                    }
+                } catch (e) {
+                    console.error(e);
+                    const list = document.getElementById('drawer-subs-list');
+                    if (list) list.innerHTML = '<div style="padding:15px;color:red;">Failed to load.</div>';
+                }
+            }
+
+            async function toggleSubscription(channelId, btn) {
+                if (!channelId) return;
+                const action = btn.innerText === '訂閱' ? 'subscribe' : 'unsubscribe';
+                const originalText = btn.innerText;
+                btn.innerText = action === 'subscribe' ? '已訂閱' : '訂閱';
+                btn.style.background = action === 'subscribe' ? '#333' : '#cc0000';
+                btn.style.color = action === 'subscribe' ? '#aaa' : '#fff';
+                try {
+                    const res = await fetch('/api/subscription_action', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            id: vid,
-                            title: info.title,
-                            format: fmt,
-                            type: 'video'
-                        })
+                        body: JSON.stringify({ action: action, channelId: channelId })
                     });
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error);
+                    fetchSubscriptions();
                 } catch (e) {
-                    console.error("Queue error", e);
+                    showAlert('錯誤', e.message, btn);
+                    btn.innerText = originalText;
+                    btn.style.background = originalText === '訂閱' ? '#cc0000' : '#333';
+                    btn.style.color = originalText === '訂閱' ? '#fff' : '#aaa';
                 }
             }
 
-            clearSelection();
-            showToast("已加入下載隊列");
-        }
-
-        // --- Drawer Logic ---
-        function toggleDrawer() {
-            const drawer = document.getElementById('app-drawer');
-            const overlay = document.getElementById('drawer-overlay');
-            if (drawer.classList.contains('open')) {
-                closeDrawer();
-            } else {
-                drawer.classList.add('open');
-                overlay.classList.add('show');
-                const subsList = document.getElementById('drawer-subs-list');
-                if (subsList && subsList.innerHTML.includes('Loading')) fetchSubscriptions();
+            // --- Block Logic ---
+            async function fetchBlockedChannels() {
+                try {
+                    const res = await fetch('/api/blocked_channels');
+                    if (res.status === 401) return;
+                    window.userBlocklist = await res.json();
+                } catch (e) { console.error('Blocklist error', e); }
             }
-        }
-        function closeDrawer() {
-            document.getElementById('app-drawer').classList.remove('open');
-            document.getElementById('drawer-overlay').classList.remove('show');
-        }
 
-        // --- Subscription Logic ---
-        async function fetchSubscriptions() {
-            try {
-                const res = await fetch('/api/subscriptions');
-                if (res.status === 401) return;
-                const data = await res.json();
-                const list = document.getElementById('drawer-subs-list');
-                list.innerHTML = '';
-                const subs = Array.isArray(data) ? data : data.subscriptions;
-                // Update global cache
-                window.userSubscriptions = subs || [];
+            async function toggleBlock(channelId, channelName, btn) {
+                if (!channelId) return;
+                // Determine action based on current state (or button text if provided)
+                const isBlocked = window.userBlocklist[channelId] !== undefined;
+                const action = isBlocked ? 'unblock' : 'block';
 
-                if (Array.isArray(subs) && subs.length > 0) {
-                    subs.forEach(sub => {
-                        const safeTitle = sub.title.replace(/'/g, "\\'");
-                        const div = document.createElement('div');
-                        div.className = 'drawer-item';
-                        div.onclick = function () { loadChannel(safeTitle, sub.channelId); };
-                        div.innerHTML = `<img src="${sub.thumbnail}" loading="lazy"><div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sub.title}</div>`;
-                        list.appendChild(div);
+                try {
+                    const res = await fetch('/api/block_channel', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: action, channelId: channelId, channelName: channelName })
                     });
-                } else {
-                    list.innerHTML = '<div style="padding:15px;color:#777;">No subscriptions found.</div>';
-                }
-            } catch (e) {
-                console.error(e);
-                const list = document.getElementById('drawer-subs-list');
-                if (list) list.innerHTML = '<div style="padding:15px;color:red;">Failed to load.</div>';
-            }
-        }
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error);
 
-        async function toggleSubscription(channelId, btn) {
-            if (!channelId) return;
-            const action = btn.innerText === '訂閱' ? 'subscribe' : 'unsubscribe';
-            const originalText = btn.innerText;
-            btn.innerText = action === 'subscribe' ? '已訂閱' : '訂閱';
-            btn.style.background = action === 'subscribe' ? '#333' : '#cc0000';
-            btn.style.color = action === 'subscribe' ? '#aaa' : '#fff';
-            try {
-                const res = await fetch('/api/subscription_action', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: action, channelId: channelId })
-                });
-                const data = await res.json();
-                if (data.error) throw new Error(data.error);
-                fetchSubscriptions();
-            } catch (e) {
-                showAlert('錯誤', e.message, btn);
-                btn.innerText = originalText;
-                btn.style.background = originalText === '訂閱' ? '#cc0000' : '#333';
-                btn.style.color = originalText === '訂閱' ? '#fff' : '#aaa';
-            }
-        }
+                    // Update local cache
+                    if (data.blocked) window.userBlocklist = data.blocked;
 
-        // --- Block Logic ---
-        async function fetchBlockedChannels() {
-            try {
-                const res = await fetch('/api/blocked_channels');
-                if (res.status === 401) return;
-                window.userBlocklist = await res.json();
-            } catch (e) { console.error('Blocklist error', e); }
-        }
-
-        async function toggleBlock(channelId, channelName, btn) {
-            if (!channelId) return;
-            // Determine action based on current state (or button text if provided)
-            const isBlocked = window.userBlocklist[channelId] !== undefined;
-            const action = isBlocked ? 'unblock' : 'block';
-
-            try {
-                const res = await fetch('/api/block_channel', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: action, channelId: channelId, channelName: channelName })
-                });
-                const data = await res.json();
-                if (data.error) throw new Error(data.error);
-
-                // Update local cache
-                if (data.blocked) window.userBlocklist = data.blocked;
-
-                // Update UI if button passed
-                if (btn) {
-                    if (action === 'block') {
-                        btn.innerText = '已封鎖';
-                        btn.style.background = '#333';
-                    } else {
-                        btn.innerText = '封鎖';
-                        btn.style.background = '#e62117'; // Red? Or grey? Let's use red for Action
+                    // Update UI if button passed
+                    if (btn) {
+                        if (action === 'block') {
+                            btn.innerText = '已封鎖';
+                            btn.style.background = '#333';
+                        } else {
+                            btn.innerText = '封鎖';
+                            btn.style.background = '#e62117'; // Red? Or grey? Let's use red for Action
+                        }
                     }
-                }
 
-                // If in manager, refresh
-                const manager = document.getElementById('manager-overlay');
-                if (manager && manager.style.display === 'block') {
-                    openManager('blocked');
-                }
+                    // If in manager, refresh
+                    const manager = document.getElementById('manager-overlay');
+                    if (manager && manager.style.display === 'block') {
+                        openManager('blocked');
+                    }
 
-            } catch (e) {
-                showAlert('錯誤', e.message, btn);
+                } catch (e) {
+                    showAlert('錯誤', e.message, btn);
+                }
             }
-        }
 
-        // --- Manager UI (Deprecated - Server Side Rendered now) ---
-        // function openManager(type) { ... }
+            // --- Manager UI (Deprecated - Server Side Rendered now) ---
+            // function openManager(type) { ... }
 
-        // --- Channel & Nav Logic ---
-        function loadCategory(cat, btn) {
-            if (window.location.pathname !== '/' || window.location.search.includes('?v=')) {
-                window.location.href = '/?category=' + cat;
-            } else {
-                if (typeof window.loadCategoryInternal === 'function') {
-                    window.loadCategoryInternal(cat, btn);
-                } else {
+            // --- Channel & Nav Logic ---
+            function loadCategory(cat, btn) {
+                if (window.location.pathname !== '/' || window.location.search.includes('?v=')) {
                     window.location.href = '/?category=' + cat;
-                }
-            }
-        }
-
-        function loadChannel(channelName, channelId = '') {
-            closeDrawer();
-            if (channelId) {
-                window.location.href = `/channel?c=${encodeURIComponent(channelId)}&name=${encodeURIComponent(channelName)}`;
-            } else {
-                window.location.href = '/search?q=' + encodeURIComponent(channelName);
-            }
-        }
-
-        // --- History Logic ---
-        function getHistory() {
-            try { return JSON.parse(localStorage.getItem('yt_lite_history') || '[]'); } catch { return []; }
-        }
-        function saveHistory(video) {
-            let history = getHistory();
-            history = history.filter(v => v.id !== video.id);
-            history.unshift(video);
-            if (history.length > 50) history.pop();
-            localStorage.setItem('yt_lite_history', JSON.stringify(history));
-        }
-
-        const iconDown = '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg>'; // Expand
-        const iconUp = '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/></svg>'; // Collapse
-
-        // --- Player Logic ---
-        function toggleDesc() {
-            const desc = document.getElementById('player-desc');
-            const btn = document.getElementById('desc-toggle');
-            if (desc.style.display === 'none') {
-                desc.style.display = 'block';
-                btn.innerHTML = iconUp;
-                btn.title = '收起影片說明';
-            } else {
-                desc.style.display = 'none';
-                btn.innerHTML = iconDown;
-                btn.title = '展開影片說明';
-            }
-        }
-
-        function toggleRelated() {
-            const content = document.getElementById('related-videos');
-            const btn = document.getElementById('related-toggle');
-            if (content.style.display === 'none') {
-                content.style.display = 'block';
-                btn.innerHTML = iconUp;
-            } else {
-                content.style.display = 'none';
-                btn.innerHTML = iconDown;
-            }
-        }
-
-        window.addEventListener('popstate', function (event) {
-            const overlay = document.getElementById('player-overlay');
-            if (overlay && overlay.style.display === 'flex') {
-                const urlParams = new URLSearchParams(window.location.search);
-                if (!urlParams.has('v')) {
-                    // Close UI without touching history
-                    const iframe = document.getElementById('youtube-iframe');
-                    overlay.style.display = 'none';
-                    overlay.classList.remove('minimized');
-                    window.isMinimized = false;
-                    if (iframe) {
-                        iframe.src = '';
-                        iframe.style.display = 'none';
+                } else {
+                    if (typeof window.loadCategoryInternal === 'function') {
+                        window.loadCategoryInternal(cat, btn);
+                    } else {
+                        window.location.href = '/?category=' + cat;
                     }
-                    document.body.style.overflow = '';
                 }
             }
-        });
 
-        function toggleMiniPlayer(e) {
-            if (e) { e.preventDefault(); e.stopPropagation(); }
-            const overlay = document.getElementById('player-overlay');
-            const minBtn = document.getElementById('btn-minimize');
+            function loadChannel(channelName, channelId = '') {
+                closeDrawer();
+                if (channelId) {
+                    window.location.href = `/channel?c=${encodeURIComponent(channelId)}&name=${encodeURIComponent(channelName)}`;
+                } else {
+                    window.location.href = '/search?q=' + encodeURIComponent(channelName);
+                }
+            }
 
-            if (window.isMinimized) {
-                // Restore
-                window.isMinimized = false;
+            // --- History Logic ---
+            function getHistory() {
+                try { return JSON.parse(localStorage.getItem('yt_lite_history') || '[]'); } catch { return []; }
+            }
+            function saveHistory(video) {
+                let history = getHistory();
+                history = history.filter(v => v.id !== video.id);
+                history.unshift(video);
+                if (history.length > 50) history.pop();
+                localStorage.setItem('yt_lite_history', JSON.stringify(history));
+            }
+
+            const iconDown = '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg>'; // Expand
+            const iconUp = '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/></svg>'; // Collapse
+
+            // --- Player Logic ---
+            function toggleDesc() {
+                const desc = document.getElementById('player-desc');
+                const btn = document.getElementById('desc-toggle');
+                if (desc.style.display === 'none') {
+                    desc.style.display = 'block';
+                    btn.innerHTML = iconUp;
+                    btn.title = '收起影片說明';
+                } else {
+                    desc.style.display = 'none';
+                    btn.innerHTML = iconDown;
+                    btn.title = '展開影片說明';
+                }
+            }
+
+            function toggleRelated() {
+                const content = document.getElementById('related-videos');
+                const btn = document.getElementById('related-toggle');
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                    btn.innerHTML = iconUp;
+                } else {
+                    content.style.display = 'none';
+                    btn.innerHTML = iconDown;
+                }
+            }
+
+            window.addEventListener('popstate', function (event) {
+                const overlay = document.getElementById('player-overlay');
+                if (overlay && overlay.style.display === 'flex') {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (!urlParams.has('v')) {
+                        // Close UI without touching history
+                        const iframe = document.getElementById('youtube-iframe');
+                        overlay.style.display = 'none';
+                        overlay.classList.remove('minimized');
+                        window.isMinimized = false;
+                        if (iframe) {
+                            iframe.src = '';
+                            iframe.style.display = 'none';
+                        }
+                        document.body.style.overflow = '';
+                    }
+                }
+            });
+
+            function toggleMiniPlayer(e) {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                const overlay = document.getElementById('player-overlay');
+                const minBtn = document.getElementById('btn-minimize');
+
+                if (window.isMinimized) {
+                    // Restore
+                    window.isMinimized = false;
+                    overlay.classList.remove('minimized');
+                    overlay.style.position = 'fixed';
+                    overlay.style.top = '0';
+                    overlay.style.left = '0';
+                    overlay.style.width = '100%';
+                    overlay.style.height = '100%';
+                    overlay.style.borderRadius = '0';
+                    minBtn.style.display = 'flex';
+
+                    // Adjust to header if present
+                    const header = document.querySelector('header');
+                    if (header) {
+                        const offset = header.offsetHeight + 8;
+                        overlay.style.top = `${offset}px`;
+                        overlay.style.height = `calc(100% - ${offset}px)`;
+                    } else {
+                        overlay.style.top = '64px';
+                        overlay.style.height = 'calc(100% - 64px)';
+                    }
+                } else {
+                    // Minimize
+                    window.isMinimized = true;
+                    overlay.classList.add('minimized');
+                    // Remove explicit styles to let CSS take over for PiP
+                    overlay.style.width = '';
+                    overlay.style.height = '';
+                    overlay.style.top = '';
+                    overlay.style.left = '';
+                    overlay.style.position = '';
+                    // Note: .minimized CSS uses !important for critical props
+                }
+            }
+
+            function closePlayer(e) {
+                if (e) e.stopPropagation();
+                closePlayerLogic();
+            }
+
+            function closePlayerLogic() {
+                const overlay = document.getElementById('player-overlay');
+                const iframe = document.getElementById('youtube-iframe');
+                overlay.style.display = 'none';
                 overlay.classList.remove('minimized');
+                window.isMinimized = false;
+                if (iframe) {
+                    iframe.src = '';
+                    iframe.style.display = 'none';
+                }
+                document.body.style.overflow = '';
+                if (window.history.state && window.history.state.v) {
+                    // Try to go back if state was pushed, else just replace url
+                    // history.back(); // Can be tricky. Let's just reset URL cleanly
+                    const url = new URL(window.location);
+                    url.searchParams.delete('v');
+                    window.history.replaceState({}, '', url);
+                }
+            }
+
+            function closeOverlayIfOpen() {
+                const overlay = document.getElementById('player-overlay');
+                if (overlay && overlay.style.display === 'flex') {
+                    closePlayerLogic();
+                }
+            }
+
+            function toggleImmersiveMode(e) {
+                if (e) e.stopPropagation();
+                const wrapper = document.querySelector('.video-wrapper');
+                const btn = document.getElementById('btn-immersive');
+                const video = document.getElementById('main-video');
+
+                // Check if we are in Local Player mode (video is visible)
+                const isLocalPlayer = video && video.style.display !== 'none';
+
+                if (isLocalPlayer) {
+                    // Use Native Fullscreen for Local Player (iOS/Android support)
+                    if (video.webkitEnterFullscreen) {
+                        video.webkitEnterFullscreen(); // iOS
+                        return; // iOS usually handles the UI, so we don't need to toggle CSS manually
+                    } else if (video.requestFullscreen) {
+                        video.requestFullscreen(); // Android/Desktop
+                    } else if (wrapper.requestFullscreen) {
+                        wrapper.requestFullscreen();
+                    }
+                }
+
+                // Fallback / Hybrid for "Immersive Mode" (CSS only) or if Native fails/is for iframe
+                wrapper.classList.toggle('immersive');
+
+                // Adjust body scroll
+                if (wrapper.classList.contains('immersive')) {
+                    document.body.style.overflow = 'hidden';
+                    // Change icon to 'Contract'
+                    btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>';
+                } else {
+                    if (!window.isMinimized) document.body.style.overflow = ''; // Restore if not minified
+                    // Change icon to 'Expand'
+                    btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>';
+                }
+            }
+
+            // Global playlist context
+            let currentPlaylistContext = null;
+            let currentVideoIndex = -1;
+
+            // YouTube API Event Handlers
+            function onPlayerReady(event) {
+                console.log('Player ready');
+                event.target.playVideo();
+            }
+
+            function onPlayerStateChange(event) {
+                const cover = document.getElementById('player-cover');
+                const coverTitle = document.getElementById('cover-title');
+                const coverBtn = document.getElementById('cover-btn');
+
+                if (event.data === YT.PlayerState.PLAYING) {
+                    if (cover) cover.style.display = 'none';
+                    const loader = document.getElementById('player-loader');
+                    if (loader) loader.style.display = 'none';
+                } else if (event.data === YT.PlayerState.PAUSED) {
+                    // Custom cover disabled by user request to ensure native controls are always accessible.
+                    /*
+                    if (cover) {
+                        coverTitle.innerText = '已暫停';
+                        coverBtn.innerText = '繼續播放';
+                        coverBtn.onclick = function () { if (ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo(); };
+                        cover.style.display = 'flex';
+                    }
+                    */
+                } else if (event.data === YT.PlayerState.ENDED) {
+                    if (currentPlaylistContext) {
+                        playNextVideo();
+                    } else {
+                        if (cover) {
+                            coverTitle.innerText = '播放結束';
+                            coverBtn.innerText = '重播影片';
+                            coverBtn.onclick = function () { if (ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo(); };
+                            cover.style.display = 'flex';
+                        }
+                    }
+                }
+            }
+
+            function onPlayerError(event) {
+                console.error('Player error code:', event.data);
+                // 100: Not found, 101/150: Not allowed to play in embed
+                if ([100, 101, 150].includes(event.data)) {
+                    console.log('Auto-switching to local download due to restriction...');
+                    showToast('影片受限，自動切換至本地下載模式...');
+                    switchToProxyPlayer();
+                }
+            }
+
+            async function openPlayer(video, context) {
+                // Force full screen mode
+                const overlay = document.getElementById('player-overlay');
+                overlay.classList.remove('minimized');
+                overlay.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+
+                // Force full screen styles
                 overlay.style.position = 'fixed';
                 overlay.style.top = '0';
                 overlay.style.left = '0';
                 overlay.style.width = '100%';
                 overlay.style.height = '100%';
                 overlay.style.borderRadius = '0';
-                minBtn.style.display = 'flex';
+                window.isMinimized = false;
 
-                // Adjust to header if present
+                // Updated Playlist Context
+                currentPlaylistContext = context;
+                if (context && context.videos) {
+                    currentVideoIndex = context.videos.findIndex(v => v.id === video.id);
+                }
+                if (typeof updatePlaylistNavButtons === 'function') updatePlaylistNavButtons();
+
+                // Update URL
+                const url = new URL(window.location);
+                url.searchParams.set('v', video.id);
+                if (context && context.list) {
+                    url.searchParams.set('list', context.list);
+                }
+                // Preserve current path, don't force root /
+
+                if (url.toString() !== window.location.href) {
+                    history.pushState({ v: video.id }, '', url.toString());
+                }
+
+                // Adjust for Header
                 const header = document.querySelector('header');
                 if (header) {
                     const offset = header.offsetHeight + 8;
@@ -1579,242 +1879,128 @@
                     overlay.style.top = '64px';
                     overlay.style.height = 'calc(100% - 64px)';
                 }
-            } else {
-                // Minimize
-                window.isMinimized = true;
-                overlay.classList.add('minimized');
-                // Remove explicit styles to let CSS take over for PiP
-                overlay.style.width = '';
-                overlay.style.height = '';
-                overlay.style.top = '';
-                overlay.style.left = '';
-                overlay.style.position = '';
-                // Note: .minimized CSS uses !important for critical props
-            }
-        }
 
-        function closePlayer(e) {
-            if (e) e.stopPropagation();
-            closePlayerLogic();
-        }
+                saveHistory(video);
 
-        function closePlayerLogic() {
-            const overlay = document.getElementById('player-overlay');
-            const iframe = document.getElementById('youtube-iframe');
-            overlay.style.display = 'none';
-            overlay.classList.remove('minimized');
-            window.isMinimized = false;
-            if (iframe) {
-                iframe.src = '';
-                iframe.style.display = 'none';
-            }
-            document.body.style.overflow = '';
-            if (window.history.state && window.history.state.v) {
-                // Try to go back if state was pushed, else just replace url
-                // history.back(); // Can be tricky. Let's just reset URL cleanly
-                const url = new URL(window.location);
-                url.searchParams.delete('v');
-                window.history.replaceState({}, '', url);
-            }
-        }
+                // UI Updates
+                document.getElementById('player-title').textContent = video.title;
+                document.getElementById('mini-title').textContent = video.title;
+                document.getElementById('player-desc').textContent = "Loading description...";
 
-        function closeOverlayIfOpen() {
-            const overlay = document.getElementById('player-overlay');
-            if (overlay && overlay.style.display === 'flex') {
-                closePlayerLogic();
-            }
-        }
-
-        // Global playlist context
-        let currentPlaylistContext = null;
-        let currentVideoIndex = -1;
-
-        // YouTube API Event Handlers
-        function onPlayerReady(event) {
-            console.log('Player ready');
-            event.target.playVideo();
-        }
-
-        function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.ENDED) {
-                if (currentPlaylistContext) {
-                    playNextVideo();
+                // Reset Desc Toggle
+                const descFn = document.getElementById('player-desc');
+                descFn.style.display = 'none';
+                const descToggle = document.getElementById('desc-toggle');
+                if (descToggle) {
+                    descToggle.innerHTML = iconDown;
+                    descToggle.title = '展開影片說明';
                 }
-            }
-        }
 
-        function onPlayerError(event) {
-            console.error('Player error code:', event.data);
-            // 100: Not found, 101/150: Not allowed to play in embed
-            if ([100, 101, 150].includes(event.data)) {
-                console.log('Auto-switching to local download due to restriction...');
-                showToast('影片受限，自動切換至本地下載模式...');
-                switchToProxyPlayer();
-            }
-        }
+                // Reset Related Toggle
+                const relatedContent = document.getElementById('related-videos');
+                const relatedToggle = document.getElementById('related-toggle');
+                if (relatedContent) relatedContent.style.display = 'block';
+                if (relatedToggle) relatedToggle.innerHTML = iconUp;
 
-        async function openPlayer(video, context) {
-            // Force full screen mode
-            const overlay = document.getElementById('player-overlay');
-            overlay.classList.remove('minimized');
-            overlay.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
-
-            // Force full screen styles
-            overlay.style.position = 'fixed';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.width = '100%';
-            overlay.style.height = '100%';
-            overlay.style.borderRadius = '0';
-            window.isMinimized = false;
-
-            // Updated Playlist Context
-            currentPlaylistContext = context;
-            if (context && context.videos) {
-                currentVideoIndex = context.videos.findIndex(v => v.id === video.id);
-            }
-            if (typeof updatePlaylistNavButtons === 'function') updatePlaylistNavButtons();
-
-            // Update URL
-            const url = new URL(window.location);
-            url.searchParams.set('v', video.id);
-            if (context && context.list) {
-                url.searchParams.set('list', context.list);
-            }
-            // Preserve current path, don't force root /
-
-            if (url.toString() !== window.location.href) {
-                history.pushState({ v: video.id }, '', url.toString());
-            }
-
-            // Adjust for Header
-            const header = document.querySelector('header');
-            if (header) {
-                const offset = header.offsetHeight + 8;
-                overlay.style.top = `${offset}px`;
-                overlay.style.height = `calc(100% - ${offset}px)`;
-            } else {
-                overlay.style.top = '64px';
-                overlay.style.height = 'calc(100% - 64px)';
-            }
-
-            saveHistory(video);
-
-            // UI Updates
-            document.getElementById('player-title').textContent = video.title;
-            document.getElementById('mini-title').textContent = video.title;
-            document.getElementById('player-desc').textContent = "Loading description...";
-
-            // Reset Desc Toggle
-            const descFn = document.getElementById('player-desc');
-            descFn.style.display = 'none';
-            const descToggle = document.getElementById('desc-toggle');
-            if (descToggle) {
-                descToggle.innerHTML = iconDown;
-                descToggle.title = '展開影片說明';
-            }
-
-            // Reset Related Toggle
-            const relatedContent = document.getElementById('related-videos');
-            const relatedToggle = document.getElementById('related-toggle');
-            if (relatedContent) relatedContent.style.display = 'block';
-            if (relatedToggle) relatedToggle.innerHTML = iconUp;
-
-            // Channel & Meta
-            const metaFn = document.getElementById('player-meta');
-            const safeUploader = video.uploader.replace(/'/g, "\\'");
-            metaFn.innerHTML = `
+                // Channel & Meta
+                const metaFn = document.getElementById('player-meta');
+                const safeUploader = video.uploader.replace(/'/g, "\\'");
+                metaFn.innerHTML = `
             <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
                 <span onclick="loadChannel('${safeUploader}')" style="color: #3ea6ff; font-weight: bold; cursor: pointer;">${video.uploader}</span>
                 <button style="padding:6px 12px; font-size:12px; border-radius:15px; background:#cc0000; color:#fff; border:none;" onclick="toggleSubscription('', this)">訂閱</button>
             </div>
         `;
 
-            // Video Playback (API or Iframe)
-            const videoEl = document.getElementById('main-video');
-            if (videoEl) {
-                videoEl.pause();
-                videoEl.style.display = 'none';
-                videoEl.src = '';
-            }
-
-            // Ensure wrapper exists
-            let wrapper = document.querySelector('.video-wrapper');
-            let ytElement = document.getElementById('youtube-iframe');
-
-            // If we have an existing YT Player instance, try to use it
-            if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
-                ytElement.style.display = 'block';
-                ytPlayer.loadVideoById(video.id);
-            } else {
-                // If element exists but we don't have a player (or it's a raw iframe), reset it
-                if (ytElement) ytElement.remove();
-
-                // Create a clean API container
-                const div = document.createElement('div');
-                div.id = 'youtube-iframe';
-                div.style.width = '100%';
-                div.style.height = '100%';
-                wrapper.appendChild(div);
-
-                if (typeof YT !== 'undefined' && YT.Player) {
-                    ytPlayer = new YT.Player('youtube-iframe', {
-                        height: '100%',
-                        width: '100%',
-                        videoId: video.id,
-                        playerVars: {
-                            'autoplay': 1,
-                            'rel': 0,
-                            'playsinline': 1,
-                            'controls': 1,
-                            'origin': window.location.origin
-                        },
-                        events: {
-                            'onReady': onPlayerReady,
-                            'onStateChange': onPlayerStateChange,
-                            'onError': onPlayerError
-                        }
-                    });
-                } else {
-                    // Fail-safe: Fallback to raw iframe if API failed to load
-                    console.warn('YouTube API missing, falling back to iframe');
-                    div.innerHTML = `<iframe id="youtube-iframe" width="100%" height="100%" src="https://www.youtube.com/embed/${video.id}?autoplay=1&rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                // Video Playback (API or Iframe)
+                const videoEl = document.getElementById('main-video');
+                if (videoEl) {
+                    // Prevent event loops when clearing src
+                    videoEl.onended = null;
+                    videoEl.onerror = null;
+                    videoEl.pause();
+                    videoEl.style.display = 'none';
+                    videoEl.removeAttribute('src'); // Better than src=''
+                    videoEl.load();
                 }
-            }
 
-            // Setup Playlist / Related Container
-            const relatedContainer = document.getElementById('related-videos');
-            relatedContainer.innerHTML = ''; // Clear previous
-            let isPlaylistMode = false;
+                // Ensure wrapper exists
+                let wrapper = document.querySelector('.video-wrapper');
+                let ytElement = document.getElementById('youtube-iframe');
 
-            if (context && context.videos && context.videos.length > 0) {
-                isPlaylistMode = true;
-                currentPlaylistContext = context;
-                currentVideoIndex = context.videos.findIndex(v => v.id === video.id);
+                // If we have an existing YT Player instance, try to use it
+                if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+                    ytElement.style.display = 'block';
+                    ytPlayer.loadVideoById(video.id);
+                } else {
+                    // If element exists but we don't have a player (or it's a raw iframe), reset it
+                    if (ytElement) ytElement.remove();
 
-                const header = document.createElement('div');
-                header.innerText = `播放清單 (${context.videos.length} 影片)`;
-                header.style.cssText = 'padding: 10px 0; font-weight: bold; color: #fff; border-bottom:1px solid #333; margin-bottom:10px;';
-                relatedContainer.appendChild(header);
+                    // Create a clean API container - Use iframe to enforce sandbox immediately if API consumes it
+                    // Note: YT.Player replaces the node, but if we provide an iframe, it adapts it. 
+                    // However, safe practice: Create placeholder, let API load, then force attributes? 
+                    // No, attributes must be on the frame. 
+                    // Better approach: Create iframe yourself, then bind.
+                    const iframe = document.createElement('iframe');
+                    iframe.id = 'youtube-iframe';
+                    iframe.style.width = '100%';
+                    iframe.style.height = '100%';
+                    // Sandbox: Block top-navigation and popups to prevent "More Videos" from linking to YT Actions
+                    // Set src immediately to avoid empty frame issues before API loads
+                    // fs=1: Always show native fullscreen button to avoid confusion
+                    iframe.src = `https://www.youtube.com/embed/${video.id}?enablejsapi=1&autoplay=1&rel=0&playsinline=1&controls=1&fs=1&origin=${window.location.origin}`;
+                    iframe.setAttribute('frameborder', '0');
+                    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+                    iframe.setAttribute('allowfullscreen', 'true');
+                    wrapper.appendChild(iframe);
 
-                context.videos.forEach((vid, idx) => {
-                    const isCurrent = vid.id === video.id;
-                    const div = document.createElement('div');
-                    div.style.display = 'flex';
-                    div.style.gap = '10px';
-                    div.style.marginBottom = '10px';
-                    div.style.cursor = 'pointer';
-                    div.style.padding = '8px';
-                    div.style.borderRadius = '8px';
-                    if (isCurrent) div.style.background = '#333';
+                    if (typeof YT !== 'undefined' && YT.Player) {
+                        ytPlayer = new YT.Player('youtube-iframe', {
+                            events: {
+                                'onReady': onPlayerReady,
+                                'onStateChange': onPlayerStateChange,
+                                'onError': onPlayerError
+                            }
+                        });
+                    } else {
+                        // Fail-safe: Fallback to raw iframe if API failed to load (already created above, just ensure no api confusion)
+                        console.warn('YouTube API missing, using raw iframe');
+                        // The iframe created above is sufficient
+                    }
+                }
 
-                    div.onclick = function () {
-                        openPlayer(vid, context);
-                        document.querySelector('.overlay-container').scrollTop = 0;
-                    };
+                // Setup Playlist / Related Container
+                const relatedContainer = document.getElementById('related-videos');
+                relatedContainer.innerHTML = ''; // Clear previous
+                let isPlaylistMode = false;
 
-                    div.innerHTML = `
+                if (context && context.videos && context.videos.length > 0) {
+                    isPlaylistMode = true;
+                    currentPlaylistContext = context;
+                    currentVideoIndex = context.videos.findIndex(v => v.id === video.id);
+
+                    const header = document.createElement('div');
+                    header.innerText = `播放清單 (${context.videos.length} 影片)`;
+                    header.style.cssText = 'padding: 10px 0; font-weight: bold; color: #fff; border-bottom:1px solid #333; margin-bottom:10px;';
+                    relatedContainer.appendChild(header);
+
+                    context.videos.forEach((vid, idx) => {
+                        const isCurrent = vid.id === video.id;
+                        const div = document.createElement('div');
+                        div.style.display = 'flex';
+                        div.style.gap = '10px';
+                        div.style.marginBottom = '10px';
+                        div.style.cursor = 'pointer';
+                        div.style.padding = '8px';
+                        div.style.borderRadius = '8px';
+                        if (isCurrent) div.style.background = '#333';
+
+                        div.onclick = function () {
+                            openPlayer(vid, context);
+                            document.querySelector('.overlay-container').scrollTop = 0;
+                        };
+
+                        div.innerHTML = `
                           <div style="color:#aaa; width:20px; display:flex; align-items:center; justify-content:center;">${idx + 1}</div>
                           <img src="${vid.thumbnail}" style="width:100px; height:auto; aspect-ratio:16/9; object-fit:cover; border-radius:4px;">
                           <div style="flex:1;">
@@ -1822,46 +2008,46 @@
                               <div style="font-size:11px; color:#aaa;">${vid.uploader}</div>
                           </div>
                       `;
-                    relatedContainer.appendChild(div);
-                    if (isCurrent) {
-                        setTimeout(() => div.scrollIntoView({ behavior: "smooth", block: "center" }), 500);
-                    }
-                });
+                        relatedContainer.appendChild(div);
+                        if (isCurrent) {
+                            setTimeout(() => div.scrollIntoView({ behavior: "smooth", block: "center" }), 500);
+                        }
+                    });
 
-                // Add navigation buttons
-                updatePlaylistNavButtons();
-            } else {
-                currentPlaylistContext = null;
-                currentVideoIndex = -1;
-                updatePlaylistNavButtons();
-            }
+                    // Add navigation buttons
+                    updatePlaylistNavButtons();
+                } else {
+                    currentPlaylistContext = null;
+                    currentVideoIndex = -1;
+                    updatePlaylistNavButtons();
+                }
 
-            // Metadata Fetch
-            try {
-                const res = await fetch(`/api/get_stream?v=${video.id}`);
-                const data = await res.json();
-                if (data.info) {
-                    if (data.info.title) document.getElementById('player-title').textContent = data.info.title;
-                    if (data.info.description) document.getElementById('player-desc').textContent = data.info.description;
-                    const viewText = data.info.view_count ? ` • ${Math.floor(data.info.view_count / 10000)}萬觀看` : '';
-                    const channelId = data.info.channel_id;
-                    const safeUploaderJs = video.uploader.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                // Metadata Fetch
+                try {
+                    const res = await fetch(`/api/get_stream?v=${video.id}`);
+                    const data = await res.json();
+                    if (data.info) {
+                        if (data.info.title) document.getElementById('player-title').textContent = data.info.title;
+                        if (data.info.description) document.getElementById('player-desc').textContent = data.info.description;
+                        const viewText = data.info.view_count ? ` • ${Math.floor(data.info.view_count / 10000)}萬觀看` : '';
+                        const channelId = data.info.channel_id;
+                        const safeUploaderJs = video.uploader.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-                    // Check subscription status
-                    const isSubscribed = window.userSubscriptions.some(sub => sub.channelId === channelId);
-                    const subText = isSubscribed ? '已訂閱' : '訂閱';
-                    const subBg = isSubscribed ? '#333' : '#cc0000';
-                    const subColor = isSubscribed ? '#aaa' : '#fff';
+                        // Check subscription status
+                        const isSubscribed = window.userSubscriptions.some(sub => sub.channelId === channelId);
+                        const subText = isSubscribed ? '已訂閱' : '訂閱';
+                        const subBg = isSubscribed ? '#333' : '#cc0000';
+                        const subColor = isSubscribed ? '#aaa' : '#fff';
 
-                    // Check block status
-                    const isBlocked = window.userBlocklist[channelId] !== undefined;
-                    const blockText = isBlocked ? '已封鎖' : '封鎖';
-                    const blockBg = isBlocked ? '#333' : '#222'; // Subtle for block
+                        // Check block status
+                        const isBlocked = window.userBlocklist[channelId] !== undefined;
+                        const blockText = isBlocked ? '已封鎖' : '封鎖';
+                        const blockBg = isBlocked ? '#333' : '#222'; // Subtle for block
 
-                    const streamUrl = data.stream_url;
-                    window.currentStreamUrl = streamUrl;
+                        const streamUrl = data.stream_url;
+                        window.currentStreamUrl = streamUrl;
 
-                    metaFn.innerHTML = `
+                        metaFn.innerHTML = `
                     <div style="display:flex; align-items:center; flex-wrap: wrap; gap: 8px;">
                         <div style="flex:1; min-width: 200px;">
                             <div onclick="loadChannel('${safeUploaderJs}','${channelId}')" style="color: #3ea6ff; font-weight: bold; font-size: 15px; padding: 5px 0; cursor: pointer; display: inline-block;">${video.uploader}</div>
@@ -1875,248 +2061,257 @@
                         </div>
                     </div>
                  `;
-                }
+                    }
 
-                // Related Videos (Mock from global if available, or fetch)
-                if (!isPlaylistMode) {
-                    const relatedContainer = document.getElementById('related-videos');
-                    relatedContainer.innerHTML = '';
-                    // Try to find video cards in current page
-                    if (data.related_videos && data.related_videos.length > 0) {
+                    // Related Videos (Mock from global if available, or fetch)
+                    if (!isPlaylistMode) {
+                        const relatedContainer = document.getElementById('related-videos');
                         relatedContainer.innerHTML = '';
-                        data.related_videos.forEach(vid => {
-                            const div = document.createElement('div');
-                            div.style.display = 'flex';
-                            div.style.gap = '10px';
-                            div.style.marginBottom = '10px';
-                            div.style.cursor = 'pointer';
-                            div.onclick = function () {
-                                openPlayer(vid);
-                                document.querySelector('.overlay-container').scrollTop = 0;
-                            };
-                            div.innerHTML = `
+                        // Try to find video cards in current page
+                        if (data.related_videos && data.related_videos.length > 0) {
+                            relatedContainer.innerHTML = '';
+                            data.related_videos.forEach(vid => {
+                                const div = document.createElement('div');
+                                div.style.display = 'flex';
+                                div.style.gap = '10px';
+                                div.style.marginBottom = '10px';
+                                div.style.cursor = 'pointer';
+                                div.onclick = function () {
+                                    openPlayer(vid);
+                                    document.querySelector('.overlay-container').scrollTop = 0;
+                                };
+                                div.innerHTML = `
                                 <img src="${vid.thumbnail}" style="width:120px; height:auto; aspect-ratio:16/9; object-fit:cover; border-radius:4px;">
                                 <div style="flex:1;">
                                     <div style="font-size:14px; font-weight:600; margin-bottom:4px; line-height:1.2; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${vid.title}</div>
                                     <div style="font-size:12px; color:#aaa;">${vid.uploader}</div>
                                 </div>
                             `;
-                            relatedContainer.appendChild(div);
-                        });
-                    } else {
-                        // Fallback to DOM scraping if no API data
-                        const currentCards = document.querySelectorAll('.video-card');
-                        let count = 0;
-                        currentCards.forEach(card => {
-                            if (count >= 8) return;
-                            const title = card.querySelector('.title').innerText;
-                            if (title === video.title) return;
-                            const clone = card.cloneNode(true);
-
-                            // Remove any existing href or onclick to prevent YouTube redirect
-                            clone.removeAttribute('href');
-                            clone.removeAttribute('onclick');
-                            const links = clone.querySelectorAll('a');
-                            links.forEach(link => {
-                                link.removeAttribute('href');
-                                link.removeAttribute('onclick');
-                                link.style.cursor = 'pointer';
+                                relatedContainer.appendChild(div);
                             });
+                        } else {
+                            // Fallback to DOM scraping if no API data
+                            const currentCards = document.querySelectorAll('.video-card');
+                            let count = 0;
+                            currentCards.forEach(card => {
+                                if (count >= 8) return;
+                                const title = card.querySelector('.title').innerText;
+                                if (title === video.title) return;
+                                const clone = card.cloneNode(true);
 
-                            clone.style.display = 'flex';
-                            clone.style.gap = '10px';
-                            clone.style.marginBottom = '10px';
-                            clone.style.cursor = 'pointer';
-                            clone.querySelector('img').style.width = '120px';
-                            clone.querySelector('img').style.height = 'auto';
-                            clone.querySelector('img').style.flexShrink = '0';
+                                // Remove any existing href or onclick to prevent YouTube redirect
+                                clone.removeAttribute('href');
+                                clone.removeAttribute('onclick');
+                                const links = clone.querySelectorAll('a');
+                                links.forEach(link => {
+                                    link.removeAttribute('href');
+                                    link.removeAttribute('onclick');
+                                    link.style.cursor = 'pointer';
+                                });
 
-                            const vid = card.getAttribute('data-vid');
-                            if (vid) {
-                                clone.onclick = function (e) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    openPlayer({
-                                        id: vid,
-                                        title: title,
-                                        uploader: card.querySelector('.uploader').innerText,
-                                        thumbnail: card.querySelector('img').src
-                                    });
-                                    document.querySelector('.overlay-container').scrollTop = 0;
-                                };
-                                relatedContainer.appendChild(clone);
-                                count++;
-                            }
-                        });
-                        if (count === 0 && (!data.related_videos || data.related_videos.length === 0)) relatedContainer.innerHTML = '<div style="padding:15px;color:#555;text-align:center;">無相關影片建議</div>';
-                    }
-                }
+                                clone.style.display = 'flex';
+                                clone.style.gap = '10px';
+                                clone.style.marginBottom = '10px';
+                                clone.style.cursor = 'pointer';
+                                clone.querySelector('img').style.width = '120px';
+                                clone.querySelector('img').style.height = 'auto';
+                                clone.querySelector('img').style.flexShrink = '0';
 
-
-            } catch (e) { console.log('Metadata error', e); }
-        }
-
-        async function downloadThisVideo(id, title) {
-            showToast(`正在加入下載隊列: ${title}...`);
-            try {
-                const res = await fetch('/api/download', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: id,
-                        title: title,
-                        format: 'mp4',
-                        type: 'video'
-                    })
-                });
-                const data = await res.json();
-                if (data.job_id) {
-                    trackDownload(data.job_id);
-                    showToast("已加入隊列 (將自動存檔)");
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        async function switchToProxyPlayer() {
-            // Get current video info
-            const urlParams = new URLSearchParams(window.location.search);
-            const videoId = urlParams.get('v');
-
-            if (!videoId) {
-                return showToast("無法取得影片 ID");
-            }
-
-            // Get video title from page
-            const titleEl = document.getElementById('player-title');
-            const videoTitle = titleEl ? titleEl.textContent : 'Video';
-
-            showToast("正在下載影片以便播放...");
-
-            try {
-                // Trigger download
-                const downloadRes = await fetch('/api/download', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: videoId,
-                        title: videoTitle,
-                        format: 'mp4',
-                        format: 'mp4',
-                        type: 'video',
-                        is_cache: true
-                    })
-                });
-
-                const downloadData = await downloadRes.json();
-
-                if (!downloadData.job_id) {
-                    return showToast("下載請求失敗");
-                }
-
-                showToast("下載中，請稍候...");
-
-                // Poll for download completion
-                let timeoutId = null;
-                const checkInterval = setInterval(async () => {
-                    try {
-                        const statusRes = await fetch(`/api/download/status/${downloadData.job_id}`);
-                        const status = await statusRes.json();
-
-                        if (status.status === 'completed' && status.file_path) {
-                            if (timeoutId) clearTimeout(timeoutId);
-                            clearInterval(checkInterval);
-
-                            // Play the downloaded file
-                            const videoEl = document.getElementById('main-video');
-                            const btn = document.getElementById('btn-proxy-player');
-
-                            // Destroy YouTube Player instance to stop API errors
-                            if (typeof ytPlayer !== 'undefined' && ytPlayer && typeof ytPlayer.destroy === 'function') {
-                                try { ytPlayer.destroy(); } catch (e) { }
-                                ytPlayer = null;
-                            }
-
-                            // Re-fetch element in case destroy() modified DOM
-                            const iframe = document.getElementById('youtube-iframe');
-                            if (iframe) {
-                                iframe.style.display = 'none';
-                            }
-
-                            if (videoEl) {
-                                // Use the local file path
-                                let localUrl = `/downloads/${status.file_path.split('/').pop()}`;
-
-                                if (status.is_cache) {
-                                    localUrl = `/cache/${status.file_path.split('/').pop()}`;
-                                }
-
-                                videoEl.style.display = 'block';
-                                videoEl.src = localUrl;
-                                videoEl.load();
-
-                                try {
-                                    videoEl.onended = () => {
-                                        if (currentPlaylistContext) playNextVideo();
+                                const vid = card.getAttribute('data-vid');
+                                if (vid) {
+                                    clone.onclick = function (e) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        openPlayer({
+                                            id: vid,
+                                            title: title,
+                                            uploader: card.querySelector('.uploader').innerText,
+                                            thumbnail: card.querySelector('img').src
+                                        });
+                                        document.querySelector('.overlay-container').scrollTop = 0;
                                     };
-                                    await videoEl.play();
-                                    document.getElementById('player-loader').style.display = 'none';
-                                    if (btn) {
-                                        btn.innerHTML = "✅ 本地播放";
-                                        btn.style.background = "#2ba640";
-                                        btn.disabled = true;
-                                    }
-                                    showToast("已切換至本地檔案播放");
-                                } catch (e) {
-                                    showToast(`播放失敗: ${e.message}`);
+                                    relatedContainer.appendChild(clone);
+                                    count++;
                                 }
+                            });
+                            if (count === 0 && (!data.related_videos || data.related_videos.length === 0)) relatedContainer.innerHTML = '<div style="padding:15px;color:#555;text-align:center;">無相關影片建議</div>';
+                        }
+                    }
+
+
+                } catch (e) { console.log('Metadata error', e); }
+            }
+
+            async function downloadThisVideo(id, title) {
+                showToast(`正在加入下載隊列: ${title}...`);
+                try {
+                    const res = await fetch('/api/download', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: id,
+                            title: title,
+                            format: 'mp4',
+                            type: 'video'
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.job_id) {
+                        trackDownload(data.job_id);
+                        showToast("已加入隊列 (將自動存檔)");
+                    }
+                } catch (e) { console.error(e); }
+            }
+
+            async function switchToProxyPlayer() {
+                // Get current video info
+                const urlParams = new URLSearchParams(window.location.search);
+                const videoId = urlParams.get('v');
+
+                if (!videoId) {
+                    return showToast("無法取得影片 ID");
+                }
+
+                // Get video title from page
+                const titleEl = document.getElementById('player-title');
+                const videoTitle = titleEl ? titleEl.textContent : 'Video';
+
+                showToast("正在下載影片以便播放...");
+
+                try {
+                    // Trigger download
+                    const downloadRes = await fetch('/api/download', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: videoId,
+                            title: videoTitle,
+                            format: 'mp4',
+                            type: 'video',
+                            is_cache: true
+                        })
+                    });
+
+                    const downloadData = await downloadRes.json();
+
+                    if (!downloadData.job_id) {
+                        return showToast("下載請求失敗");
+                    }
+
+                    showToast("下載中，請稍候...");
+
+                    // Poll for download completion
+                    let timeoutId = null;
+                    const checkInterval = setInterval(async () => {
+                        try {
+                            const statusRes = await fetch(`/api/download/status/${downloadData.job_id}`);
+                            const status = await statusRes.json();
+
+                            if (status.status === 'completed' && status.file_path) {
+                                if (timeoutId) clearTimeout(timeoutId);
+                                clearInterval(checkInterval);
+
+                                // Play the downloaded file
+                                const videoEl = document.getElementById('main-video');
+                                const btn = document.getElementById('btn-proxy-player');
+
+                                // Destroy YouTube Player instance to stop API errors
+                                if (typeof ytPlayer !== 'undefined' && ytPlayer && typeof ytPlayer.destroy === 'function') {
+                                    try { ytPlayer.destroy(); } catch (e) { }
+                                    ytPlayer = null;
+                                }
+
+                                // Re-fetch element in case destroy() modified DOM
+                                const iframe = document.getElementById('youtube-iframe');
+                                if (iframe) {
+                                    iframe.style.display = 'none';
+                                }
+
+                                if (videoEl) {
+                                    // Use the local file path
+                                    let localUrl = `/downloads/${status.file_path.split('/').pop()}`;
+
+                                    if (status.is_cache) {
+                                        localUrl = `/cache/${status.file_path.split('/').pop()}`;
+                                    }
+
+                                    videoEl.style.display = 'block';
+                                    videoEl.src = localUrl;
+                                    videoEl.load();
+
+                                    try {
+                                        videoEl.onended = () => {
+                                            if (currentPlaylistContext) playNextVideo();
+                                        };
+                                        videoEl.onerror = () => {
+                                            console.error("Local playback failed", videoEl.error);
+                                            showToast("本地播放失敗，嘗試下一首");
+                                            if (currentPlaylistContext) playNextVideo();
+                                        };
+                                        await videoEl.play();
+                                        await videoEl.play();
+                                        const loader = document.getElementById('player-loader');
+                                        if (loader) loader.style.display = 'none';
+                                        const cover = document.getElementById('player-cover');
+                                        if (cover) cover.style.display = 'none';
+
+                                        if (btn) {
+                                            btn.innerHTML = "✅ 本地播放";
+                                            btn.style.background = "#2ba640";
+                                            btn.disabled = true;
+                                        }
+                                        showToast("已切換至本地檔案播放");
+                                    } catch (e) {
+                                        showToast(`播放失敗: ${e.message}`);
+                                    }
+                                }
+                            } else if (status.status === 'failed') {
+                                if (timeoutId) clearTimeout(timeoutId);
+                                clearInterval(checkInterval);
+                                showToast(`下載失敗: ${status.error || '未知錯誤'}`);
                             }
-                        } else if (status.status === 'failed') {
+                        } catch (e) {
                             if (timeoutId) clearTimeout(timeoutId);
                             clearInterval(checkInterval);
-                            showToast(`下載失敗: ${status.error || '未知錯誤'}`);
+                            showToast(`檢查下載狀態失敗: ${e.message}`);
                         }
-                    } catch (e) {
-                        if (timeoutId) clearTimeout(timeoutId);
+                    }, 2000); // Check every 2 seconds
+
+                    // Timeout after 2 minutes
+                    timeoutId = setTimeout(() => {
                         clearInterval(checkInterval);
-                        showToast(`檢查下載狀態失敗: ${e.message}`);
-                    }
-                }, 2000); // Check every 2 seconds
+                        showToast("下載超時");
+                    }, 120000);
 
-                // Timeout after 2 minutes
-                timeoutId = setTimeout(() => {
-                    clearInterval(checkInterval);
-                    showToast("下載超時");
-                }, 120000);
-
-            } catch (e) {
-                console.error("Download error:", e);
-                showToast(`下載失敗: ${e.message}`);
-            }
-        }
-
-        function updatePlaylistNavButtons() {
-            let navContainer = document.getElementById('playlist-nav-buttons');
-
-            if (!currentPlaylistContext || !currentPlaylistContext.videos) {
-                if (navContainer) navContainer.remove();
-                return;
-            }
-
-            if (!navContainer) {
-                navContainer = document.createElement('div');
-                navContainer.id = 'playlist-nav-buttons';
-                navContainer.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-left: auto;';
-
-                const playerHeader = document.querySelector('#player-overlay .overlay-header');
-                if (playerHeader) {
-                    playerHeader.appendChild(navContainer);
+                } catch (e) {
+                    console.error("Download error:", e);
+                    showToast(`下載失敗: ${e.message}`);
                 }
             }
 
-            const hasPrev = currentVideoIndex > 0;
-            const hasNext = currentVideoIndex < currentPlaylistContext.videos.length - 1;
+            function updatePlaylistNavButtons() {
+                let navContainer = document.getElementById('playlist-nav-buttons');
 
-            navContainer.innerHTML = `
+                if (!currentPlaylistContext || !currentPlaylistContext.videos) {
+                    if (navContainer) navContainer.remove();
+                    return;
+                }
+
+                if (!navContainer) {
+                    navContainer = document.createElement('div');
+                    navContainer.id = 'playlist-nav-buttons';
+                    navContainer.style.cssText = 'display: flex; gap: 8px; align-items: center; margin-left: auto;';
+
+                    const playerHeader = document.querySelector('#player-overlay .overlay-header');
+                    if (playerHeader) {
+                        playerHeader.appendChild(navContainer);
+                    }
+                }
+
+                const hasPrev = currentVideoIndex > 0;
+                const hasNext = currentVideoIndex < currentPlaylistContext.videos.length - 1;
+
+                navContainer.innerHTML = `
                 <button onclick="playPreviousVideo()" 
                     style="padding: 6px 12px; background: ${hasPrev ? '#444' : '#222'}; color: ${hasPrev ? '#fff' : '#666'}; border: none; border-radius: 4px; cursor: ${hasPrev ? 'pointer' : 'not-allowed'}; font-size: 12px;"
                     ${!hasPrev ? 'disabled' : ''}>
@@ -2129,321 +2324,321 @@
                     下一個 ▶
                 </button>
             `;
-        }
+            }
 
-        function playPreviousVideo() {
-            if (!currentPlaylistContext || currentVideoIndex <= 0) return;
-            const prevVideo = currentPlaylistContext.videos[currentVideoIndex - 1];
-            openPlayer(prevVideo, currentPlaylistContext);
-            document.querySelector('.overlay-container').scrollTop = 0;
-        }
+            function playPreviousVideo() {
+                if (!currentPlaylistContext || currentVideoIndex <= 0) return;
+                const prevVideo = currentPlaylistContext.videos[currentVideoIndex - 1];
+                openPlayer(prevVideo, currentPlaylistContext);
+                document.querySelector('.overlay-container').scrollTop = 0;
+            }
 
-        function playNextVideo() {
-            if (!currentPlaylistContext || currentVideoIndex >= currentPlaylistContext.videos.length - 1) return;
-            const nextVideo = currentPlaylistContext.videos[currentVideoIndex + 1];
-            openPlayer(nextVideo, currentPlaylistContext);
-            document.querySelector('.overlay-container').scrollTop = 0;
-        }
+            function playNextVideo() {
+                if (!currentPlaylistContext || currentVideoIndex >= currentPlaylistContext.videos.length - 1) return;
+                const nextVideo = currentPlaylistContext.videos[currentVideoIndex + 1];
+                openPlayer(nextVideo, currentPlaylistContext);
+                document.querySelector('.overlay-container').scrollTop = 0;
+            }
 
-        // Expose functions to global scope
-        window.openPlayer = openPlayer;
-        window.downloadThisVideo = downloadThisVideo;
-        window.switchToProxyPlayer = switchToProxyPlayer;
-    </script>
-    <!-- DOWNLOADS MODAL -->
-    <div class="modal-overlay" id="downloads-modal" onclick="closeDownloadsContext(event)">
-        <div class="modal-box">
-            <div class="modal-header">
-                <h3 style="margin:0;">下載管理員</h3>
-                <button onclick="toggleDownloads()"
-                    style="background:none; border:none; color:#aaa; cursor:pointer; font-size:20px;">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="dl-list" class="dl-list">
-                    <!-- Items -->
+            // Expose functions to global scope
+            window.openPlayer = openPlayer;
+            window.downloadThisVideo = downloadThisVideo;
+            window.switchToProxyPlayer = switchToProxyPlayer;
+        </script>
+        <!-- DOWNLOADS MODAL -->
+        <div class="modal-overlay" id="downloads-modal" onclick="closeDownloadsContext(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h3 style="margin:0;">下載管理員</h3>
+                    <button onclick="toggleDownloads()"
+                        style="background:none; border:none; color:#aaa; cursor:pointer; font-size:20px;">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="dl-list" class="dl-list">
+                        <!-- Items -->
+                    </div>
+                </div>
+                <div class="modal-footer" style="flex-wrap: wrap;">
+                    <button class="btn-primary" id="btn-set-folder" onclick="setDownloadFolder()"
+                        style="background: #444; color: #fff; margin-right: auto;">📂 設定下載目錄</button>
+                    <button class="btn-secondary" onclick="clearFinishedDownloads()">清除已完成</button>
+                    <button class="btn-primary btn-green" onclick="downloadAllFiles()">全部存檔</button>
                 </div>
             </div>
-            <div class="modal-footer" style="flex-wrap: wrap;">
-                <button class="btn-primary" id="btn-set-folder" onclick="setDownloadFolder()"
-                    style="background: #444; color: #fff; margin-right: auto;">📂 設定下載目錄</button>
-                <button class="btn-secondary" onclick="clearFinishedDownloads()">清除已完成</button>
-                <button class="btn-primary btn-green" onclick="downloadAllFiles()">全部存檔</button>
+        </div>
+
+        <!-- CONFIRM MODAL -->
+        <div class="modal-overlay" id="confirm-modal" style="z-index: 2300;">
+            <div class="confirm-box">
+                <div class="confirm-title" id="confirm-title">Confirm</div>
+                <div class="confirm-msg" id="confirm-msg">Message</div>
+                <div class="confirm-actions">
+                    <button class="btn-secondary" onclick="closeConfirm(false)">取消</button>
+                    <button class="btn-primary" onclick="closeConfirm(true)">確定</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- CONFIRM MODAL -->
-    <div class="modal-overlay" id="confirm-modal" style="z-index: 2300;">
-        <div class="confirm-box">
-            <div class="confirm-title" id="confirm-title">Confirm</div>
-            <div class="confirm-msg" id="confirm-msg">Message</div>
-            <div class="confirm-actions">
-                <button class="btn-secondary" onclick="closeConfirm(false)">取消</button>
-                <button class="btn-primary" onclick="closeConfirm(true)">確定</button>
-            </div>
-        </div>
-    </div>
+        <script>
+            // --- DOWNLOADS MANAGER ---
+            let dlInterval = null;
+            let dlJobs = [];
+            window.downloadDirHandle = null;
 
-    <script>
-        // --- DOWNLOADS MANAGER ---
-        let dlInterval = null;
-        let dlJobs = [];
-        window.downloadDirHandle = null;
+            // Persistence in IDB
+            async function getSavedHandle() {
+                try {
+                    const db = await openDB();
+                    const tx = db.transaction('settings', 'readonly');
+                    const store = tx.objectStore('settings');
+                    const handle = await new Promise((res) => {
+                        const req = store.get('download_dir');
+                        req.onsuccess = () => res(req.result);
+                        req.onerror = () => res(null);
+                    });
+                    return handle;
+                } catch (e) { return null; }
+            }
 
-        // Persistence in IDB
-        async function getSavedHandle() {
-            try {
-                const db = await openDB();
-                const tx = db.transaction('settings', 'readonly');
-                const store = tx.objectStore('settings');
-                const handle = await new Promise((res) => {
-                    const req = store.get('download_dir');
-                    req.onsuccess = () => res(req.result);
-                    req.onerror = () => res(null);
+            async function saveHandle(handle) {
+                try {
+                    const db = await openDB();
+                    const tx = db.transaction('settings', 'readwrite');
+                    const store = tx.objectStore('settings');
+                    store.put(handle, 'download_dir');
+                } catch (e) { console.error(e); }
+            }
+
+            function openDB() {
+                return new Promise((resolve, reject) => {
+                    const req = indexedDB.open('ytlite_v3_db', 1);
+                    req.onupgradeneeded = () => {
+                        const db = req.result;
+                        if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings');
+                    };
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
                 });
-                return handle;
-            } catch (e) { return null; }
-        }
+            }
 
-        async function saveHandle(handle) {
-            try {
-                const db = await openDB();
-                const tx = db.transaction('settings', 'readwrite');
-                const store = tx.objectStore('settings');
-                store.put(handle, 'download_dir');
-            } catch (e) { console.error(e); }
-        }
+            async function verifyPermission(handle) {
+                if (!handle) return false;
+                const opts = { mode: 'readwrite' };
+                const current = await handle.queryPermission(opts);
+                if (current === 'granted') return true;
 
-        function openDB() {
-            return new Promise((resolve, reject) => {
-                const req = indexedDB.open('ytlite_v3_db', 1);
-                req.onupgradeneeded = () => {
-                    const db = req.result;
-                    if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings');
-                };
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            });
-        }
-
-        async function verifyPermission(handle) {
-            if (!handle) return false;
-            const opts = { mode: 'readwrite' };
-            const current = await handle.queryPermission(opts);
-            if (current === 'granted') return true;
-
-            // If denied or prompt, we show OUR modal first to explain
-            return new Promise((resolve) => {
-                showConfirm('授權請求', '為了實現「自動靜默下載」，請在稍後的瀏覽器系統提示中點擊「允許」。', async (yes) => {
-                    if (yes) {
-                        try {
-                            const result = await handle.requestPermission(opts);
-                            resolve(result === 'granted');
-                        } catch (e) {
-                            console.error(e);
+                // If denied or prompt, we show OUR modal first to explain
+                return new Promise((resolve) => {
+                    showConfirm('授權請求', '為了實現「自動靜默下載」，請在稍後的瀏覽器系統提示中點擊「允許」。', async (yes) => {
+                        if (yes) {
+                            try {
+                                const result = await handle.requestPermission(opts);
+                                resolve(result === 'granted');
+                            } catch (e) {
+                                console.error(e);
+                                resolve(false);
+                            }
+                        } else {
                             resolve(false);
                         }
-                    } else {
-                        resolve(false);
-                    }
+                    });
                 });
-            });
-        }
+            }
 
-        async function setDownloadFolder() {
-            try {
-                if (!window.showDirectoryPicker) {
-                    return showAlert('提示', '您的瀏覽器不支持直接存取文件夾，請手動下載。');
+            async function setDownloadFolder() {
+                try {
+                    if (!window.showDirectoryPicker) {
+                        return showAlert('提示', '您的瀏覽器不支持直接存取文件夾，請手動下載。');
+                    }
+                    const handle = await window.showDirectoryPicker();
+                    if (await verifyPermission(handle)) {
+                        window.downloadDirHandle = handle;
+                        await saveHandle(handle);
+                        updateFolderUI();
+                        showToast('已設定下載目錄');
+                    }
+                } catch (e) {
+                    console.error("Directory picker error:", e);
                 }
-                const handle = await window.showDirectoryPicker();
-                if (await verifyPermission(handle)) {
+            }
+
+            function updateFolderUI() {
+                const btn = document.getElementById('btn-set-folder');
+                if (btn && window.downloadDirHandle) {
+                    btn.innerText = `📁 已選: ${window.downloadDirHandle.name}`;
+                    btn.style.background = '#2ba640';
+                    btn.style.borderColor = '#2ba640';
+                }
+            }
+
+            // Auto-load on init
+            (async () => {
+                const handle = await getSavedHandle();
+                if (handle) {
+                    // We don't verify permission immediately to avoid popup on landing
+                    // but we store it
                     window.downloadDirHandle = handle;
-                    await saveHandle(handle);
-                    updateFolderUI();
-                    showToast('已設定下載目錄');
+                    // Wait for DOM
+                    setTimeout(updateFolderUI, 500);
                 }
-            } catch (e) {
-                console.error("Directory picker error:", e);
-            }
-        }
+            })();
 
-        function updateFolderUI() {
-            const btn = document.getElementById('btn-set-folder');
-            if (btn && window.downloadDirHandle) {
-                btn.innerText = `📁 已選: ${window.downloadDirHandle.name}`;
-                btn.style.background = '#2ba640';
-                btn.style.borderColor = '#2ba640';
-            }
-        }
+            function toggleDownloads() {
+                const modal = document.getElementById('downloads-modal');
+                const show = !modal.classList.contains('show');
 
-        // Auto-load on init
-        (async () => {
-            const handle = await getSavedHandle();
-            if (handle) {
-                // We don't verify permission immediately to avoid popup on landing
-                // but we store it
-                window.downloadDirHandle = handle;
-                // Wait for DOM
-                setTimeout(updateFolderUI, 500);
-            }
-        })();
-
-        function toggleDownloads() {
-            const modal = document.getElementById('downloads-modal');
-            const show = !modal.classList.contains('show');
-
-            if (show) {
-                modal.classList.add('show');
-                fetchDownloads();
-                dlInterval = setInterval(fetchDownloads, 2000);
-            } else {
-                modal.classList.remove('show');
-                clearInterval(dlInterval);
-            }
-        }
-
-        function closeDownloadsContext(e) {
-            if (e.target.id === 'downloads-modal') {
-                toggleDownloads();
-            }
-        }
-
-        let activeAutoSaves = new Set();
-        async function fetchDownloads() {
-            try {
-                const res = await fetch('/api/downloads');
-                if (res.status === 404) {
-                    dlJobs = [];
-                    renderDownloads([]);
-                    updateStatusPill([]);
-                    if (window.dlBgTask) { clearInterval(window.dlBgTask); window.dlBgTask = null; }
-                    return;
+                if (show) {
+                    modal.classList.add('show');
+                    fetchDownloads();
+                    dlInterval = setInterval(fetchDownloads, 2000);
+                } else {
+                    modal.classList.remove('show');
+                    clearInterval(dlInterval);
                 }
-                const jobs = await res.json();
-                dlJobs = jobs; // store globally
-                renderDownloads(jobs);
-                updateStatusPill(jobs);
+            }
 
-                // Auto-save logic
-                if (window.downloadDirHandle) {
-                    const readyJobs = jobs.filter(j => (j.status === 'completed' || j.status === 'finished'));
-                    for (const job of readyJobs) {
-                        if (!activeAutoSaves.has(job.job_id)) {
-                            autoSaveJob(job);
+            function closeDownloadsContext(e) {
+                if (e.target.id === 'downloads-modal') {
+                    toggleDownloads();
+                }
+            }
+
+            let activeAutoSaves = new Set();
+            async function fetchDownloads() {
+                try {
+                    const res = await fetch('/api/downloads');
+                    if (res.status === 404) {
+                        dlJobs = [];
+                        renderDownloads([]);
+                        updateStatusPill([]);
+                        if (window.dlBgTask) { clearInterval(window.dlBgTask); window.dlBgTask = null; }
+                        return;
+                    }
+                    const jobs = await res.json();
+                    dlJobs = jobs; // store globally
+                    renderDownloads(jobs);
+                    updateStatusPill(jobs);
+
+                    // Auto-save logic
+                    if (window.downloadDirHandle) {
+                        const readyJobs = jobs.filter(j => (j.status === 'completed' || j.status === 'finished'));
+                        for (const job of readyJobs) {
+                            if (!activeAutoSaves.has(job.job_id)) {
+                                autoSaveJob(job);
+                            }
                         }
                     }
+
+                    // Check if we should stop background polling
+                    const hasActive = jobs.some(j => ['queued', 'downloading'].includes(j.status));
+                    const hasSaving = activeAutoSaves.size > 0;
+                    const modalOpen = document.getElementById('downloads-modal').classList.contains('show');
+                    if (!hasActive && !hasSaving && !modalOpen && window.dlBgTask) {
+                        clearInterval(window.dlBgTask);
+                        window.dlBgTask = null;
+                    }
+                } catch (e) {
+                    console.error('DL Fetch error:', e);
                 }
-
-                // Check if we should stop background polling
-                const hasActive = jobs.some(j => ['queued', 'downloading'].includes(j.status));
-                const hasSaving = activeAutoSaves.size > 0;
-                const modalOpen = document.getElementById('downloads-modal').classList.contains('show');
-                if (!hasActive && !hasSaving && !modalOpen && window.dlBgTask) {
-                    clearInterval(window.dlBgTask);
-                    window.dlBgTask = null;
-                }
-            } catch (e) {
-                console.error('DL Fetch error:', e);
-            }
-        }
-
-        function updateStatusPill(jobs) {
-            const pill = document.getElementById('dl-status-pill');
-            if (!pill) return;
-
-            const activeDl = jobs.filter(j => ['queued', 'downloading'].includes(j.status)).length;
-            const activeSave = activeAutoSaves.size;
-
-            if (activeDl > 0 || activeSave > 0) {
-                pill.classList.add('visible');
-                let html = '';
-                if (activeDl > 0) html += `<span>⬇️ 下載中: ${activeDl}</span>`;
-                if (activeDl > 0 && activeSave > 0) html += `<span style="margin: 0 8px; opacity: 0.3;">|</span>`;
-                if (activeSave > 0) html += `<span>💾 存檔中: ${activeSave}</span>`;
-                pill.innerHTML = html;
-            } else {
-                pill.classList.remove('visible');
-            }
-        }
-
-        async function autoSaveJob(job) {
-            activeAutoSaves.add(job.job_id);
-            try {
-                // Since this is automatic, we don't want to spam toasts if many are finishing, 
-                // but one is good.
-                const success = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
-                if (success) {
-                    // Automatically delete from server after successful local save
-                    await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
-                    fetchDownloads(); // Refresh list to remove it
-                }
-            } catch (err) {
-                console.error("Auto save failed", err);
-            } finally {
-                activeAutoSaves.delete(job.job_id);
-            }
-        }
-
-        function renderDownloads(jobs) {
-            const list = document.getElementById('dl-list');
-            if (!list) return;
-
-            if (jobs.length === 0) {
-                list.innerHTML = '<div style="padding:40px; text-align:center; color:#555;">無下載任務</div>';
-                return;
             }
 
-            list.innerHTML = '';
-            jobs.forEach(job => {
-                const item = document.createElement('div');
-                item.className = 'dl-item';
+            function updateStatusPill(jobs) {
+                const pill = document.getElementById('dl-status-pill');
+                if (!pill) return;
 
-                let progress = job.progress || 0;
-                let statusText = job.status.toUpperCase();
-                let statusColor = '#aaa';
+                const activeDl = jobs.filter(j => ['queued', 'downloading'].includes(j.status)).length;
+                const activeSave = activeAutoSaves.size;
 
-                // Format Status Text
-                if (job.status === 'downloading') {
-                    statusText = `${progress.toFixed(1)}%`;
-                    statusColor = '#4caf50';
-                } else if (job.status === 'completed' || job.status === 'finished') {
-                    statusText = 'READY';
-                    statusColor = '#4caf50';
-                    progress = 100;
-                } else if (job.status === 'error') {
-                    statusText = 'ERROR';
-                    statusColor = '#d9534f';
-                } else if (job.status === 'queued') {
-                    statusText = 'QUEUED';
-                    statusColor = '#f0ad4e';
-                }
-
-                // Thumbnail
-                const thumb = `https://i.ytimg.com/vi/${job.video_id}/default.jpg`;
-
-                // Actions
-                let actions = '';
-                if (job.status === 'completed' || job.status == 'finished') {
-                    actions += `<button class="btn-icon-text bg-green" onclick="triggerFileDownload('${job.job_id}', '${job.title.replace(/'/g, "\\'")}.${job.format}')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> 存檔</button>`;
-                    actions += `<button class="btn-icon" onclick="deleteJob('${job.job_id}')" title="Delete" style="color:#d9534f"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
-                } else if (job.status === 'error') {
-                    actions += `<button class="btn-icon" onclick="deleteJob('${job.job_id}')" title="Dismiss" style="color:#d9534f"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
+                if (activeDl > 0 || activeSave > 0) {
+                    pill.classList.add('visible');
+                    let html = '';
+                    if (activeDl > 0) html += `<span>⬇️ 下載中: ${activeDl}</span>`;
+                    if (activeDl > 0 && activeSave > 0) html += `<span style="margin: 0 8px; opacity: 0.3;">|</span>`;
+                    if (activeSave > 0) html += `<span>💾 存檔中: ${activeSave}</span>`;
+                    pill.innerHTML = html;
                 } else {
-                    actions += `<button class="btn-icon" onclick="cancelJob('${job.job_id}')" title="Cancel"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg></button>`;
+                    pill.classList.remove('visible');
+                }
+            }
+
+            async function autoSaveJob(job) {
+                activeAutoSaves.add(job.job_id);
+                try {
+                    // Since this is automatic, we don't want to spam toasts if many are finishing, 
+                    // but one is good.
+                    const success = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
+                    if (success) {
+                        // Automatically delete from server after successful local save
+                        await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
+                        fetchDownloads(); // Refresh list to remove it
+                    }
+                } catch (err) {
+                    console.error("Auto save failed", err);
+                } finally {
+                    activeAutoSaves.delete(job.job_id);
+                }
+            }
+
+            function renderDownloads(jobs) {
+                const list = document.getElementById('dl-list');
+                if (!list) return;
+
+                if (jobs.length === 0) {
+                    list.innerHTML = '<div style="padding:40px; text-align:center; color:#555;">無下載任務</div>';
+                    return;
                 }
 
-                // Meta Info
-                let meta = `<span style="background:#333; padding:2px 6px; border-radius:4px; margin-right:5px; font-size:10px;">${job.format}</span> ${job.type}`;
-                if (job.status === 'downloading') {
-                    meta += ` • ${job.speed || ''}`;
-                }
-                if (job.error && job.error.includes('403')) {
-                    meta = `<span style="color:#ff6b6b">YouTube Blocked (Try later)</span>`;
-                } else if (job.error) {
-                    meta = `<span style="color:#ff6b6b">${job.error.substring(0, 30)}...</span>`;
-                }
+                list.innerHTML = '';
+                jobs.forEach(job => {
+                    const item = document.createElement('div');
+                    item.className = 'dl-item';
 
-                item.innerHTML = `
+                    let progress = job.progress || 0;
+                    let statusText = job.status.toUpperCase();
+                    let statusColor = '#aaa';
+
+                    // Format Status Text
+                    if (job.status === 'downloading') {
+                        statusText = `${progress.toFixed(1)}%`;
+                        statusColor = '#4caf50';
+                    } else if (job.status === 'completed' || job.status === 'finished') {
+                        statusText = 'READY';
+                        statusColor = '#4caf50';
+                        progress = 100;
+                    } else if (job.status === 'error') {
+                        statusText = 'ERROR';
+                        statusColor = '#d9534f';
+                    } else if (job.status === 'queued') {
+                        statusText = 'QUEUED';
+                        statusColor = '#f0ad4e';
+                    }
+
+                    // Thumbnail
+                    const thumb = `https://i.ytimg.com/vi/${job.video_id}/default.jpg`;
+
+                    // Actions
+                    let actions = '';
+                    if (job.status === 'completed' || job.status == 'finished') {
+                        actions += `<button class="btn-icon-text bg-green" onclick="triggerFileDownload('${job.job_id}', '${job.title.replace(/'/g, "\\'")}.${job.format}')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> 存檔</button>`;
+                        actions += `<button class="btn-icon" onclick="deleteJob('${job.job_id}')" title="Delete" style="color:#d9534f"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
+                    } else if (job.status === 'error') {
+                        actions += `<button class="btn-icon" onclick="deleteJob('${job.job_id}')" title="Dismiss" style="color:#d9534f"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
+                    } else {
+                        actions += `<button class="btn-icon" onclick="cancelJob('${job.job_id}')" title="Cancel"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg></button>`;
+                    }
+
+                    // Meta Info
+                    let meta = `<span style="background:#333; padding:2px 6px; border-radius:4px; margin-right:5px; font-size:10px;">${job.format}</span> ${job.type}`;
+                    if (job.status === 'downloading') {
+                        meta += ` • ${job.speed || ''}`;
+                    }
+                    if (job.error && job.error.includes('403')) {
+                        meta = `<span style="color:#ff6b6b">YouTube Blocked (Try later)</span>`;
+                    } else if (job.error) {
+                        meta = `<span style="color:#ff6b6b">${job.error.substring(0, 30)}...</span>`;
+                    }
+
+                    item.innerHTML = `
                 <div class="dl-progress-bg"><div class="dl-progress-bar" style="width:${progress}%"></div></div>
                 <img src="${thumb}" class="dl-thumb" loading="lazy">
                 <div class="dl-info">
@@ -2453,259 +2648,259 @@
                 <div style="font-size:12px; font-weight:bold; color:${statusColor}; margin-right:10px; min-width:50px; text-align:right;">${statusText}</div>
                 <div class="dl-actions">${actions}</div>
             `;
-                list.appendChild(item);
-            });
-        }
-
-        // --- Actions ---
-        async function triggerFileDownload(jobId, suggestedName = '') {
-            // Check if we have a directory handle for "silent" download
-            if (window.downloadDirHandle) {
-                try {
-                    // Verify/Request permission again if needed (only once per session usually)
-                    if (!await verifyPermission(window.downloadDirHandle)) {
-                        throw new Error('Permission denied');
-                    }
-
-                    const job = dlJobs.find(j => j.job_id === jobId);
-                    const fileName = suggestedName || (job ? `${job.title}.${job.format}` : `file_${jobId}`);
-
-                    // Sanitize filename strictly
-                    const safeName = fileName.replace(/[<>:"/\\|?*!]/g, '_').trim();
-
-                    showToast(`正在寫入: ${safeName}...`);
-
-                    const response = await fetch(`/api/download_file/${jobId}`);
-                    if (!response.ok) throw new Error('伺服器回傳錯誤');
-
-                    const fileHandle = await window.downloadDirHandle.getFileHandle(safeName, { create: true });
-                    const writable = await fileHandle.createWritable();
-
-                    if (response.body.pipeTo) {
-                        await response.body.pipeTo(writable);
-                    } else {
-                        // Fallback with yielding to keep UI responsive
-                        const reader = response.body.getReader();
-                        while (true) {
-                            const { done, value } = await reader.read();
-                            if (done) break;
-                            await writable.write(value);
-                            // Yield to main thread
-                            await new Promise(r => setTimeout(r, 0));
-                        }
-                        await writable.close();
-                    }
-
-                    showToast(`✅ 已存檔: ${safeName}`);
-                    return true;
-                } catch (err) {
-                    console.error("Silent download error:", err);
-                    showToast(`自動存檔失敗: ${err.message}，將切換至手動模式。`);
-                    // fallthrough
-                }
+                    list.appendChild(item);
+                });
             }
 
-            // Normal fallback (Iframe)
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = `/api/download_file/${jobId}`;
-            document.body.appendChild(iframe);
-            setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 60000);
-            return true;
-        }
-
-        // Override the old triggerFileDownload if present in parent scope?
-        // Since this is at the bottom, it should overwrite any previous function definition with same name in global scope
-        // BUT 'const triggerFileDownload' would error. 'function triggerFileDownload' overwrites.
-
-        async function downloadAllFiles() {
-            const jobs = dlJobs.filter(j => j.status === 'completed' || j.status === 'finished');
-            if (jobs.length === 0) return showAlert('提示', '沒有可下載的檔案');
-
-            const useSilent = !!window.downloadDirHandle;
-            if (!useSilent) toggleDownloads();
-            showToast(useSilent ? '開始批量存檔...' : '開始批量下載...');
-
-            for (const job of jobs) {
-                try {
-                    const success = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
-                    if (success && useSilent) {
-                        // Delete from server after manual "Save All" trigger too
-                        await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
-                    }
-                    if (!useSilent) await new Promise(r => setTimeout(r, 1500));
-                } catch (e) { console.error(e); }
-            }
-            if (useSilent) fetchDownloads();
-        }
-
-        async function clearFinishedDownloads() {
-            const jobs = dlJobs.filter(j => j.status === 'completed' || j.status === 'finished' || j.status === 'error');
-            if (jobs.length === 0) return;
-
-            showConfirm('清除', '確定要清除所有已完成的任務嗎？(檔案將被刪除)', async (yes) => {
-                if (yes) {
-                    showToast('正在清除任務...');
+            // --- Actions ---
+            async function triggerFileDownload(jobId, suggestedName = '') {
+                // Check if we have a directory handle for "silent" download
+                if (window.downloadDirHandle) {
                     try {
-                        await Promise.all(jobs.map(job => fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' })));
-                        fetchDownloads();
-                        showToast('清除完成');
-                    } catch (e) {
-                        console.error("Clear error", e);
-                        fetchDownloads();
+                        // Verify/Request permission again if needed (only once per session usually)
+                        if (!await verifyPermission(window.downloadDirHandle)) {
+                            throw new Error('Permission denied');
+                        }
+
+                        const job = dlJobs.find(j => j.job_id === jobId);
+                        const fileName = suggestedName || (job ? `${job.title}.${job.format}` : `file_${jobId}`);
+
+                        // Sanitize filename strictly
+                        const safeName = fileName.replace(/[<>:"/\\|?*!]/g, '_').trim();
+
+                        showToast(`正在寫入: ${safeName}...`);
+
+                        const response = await fetch(`/api/download_file/${jobId}`);
+                        if (!response.ok) throw new Error('伺服器回傳錯誤');
+
+                        const fileHandle = await window.downloadDirHandle.getFileHandle(safeName, { create: true });
+                        const writable = await fileHandle.createWritable();
+
+                        if (response.body.pipeTo) {
+                            await response.body.pipeTo(writable);
+                        } else {
+                            // Fallback with yielding to keep UI responsive
+                            const reader = response.body.getReader();
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                await writable.write(value);
+                                // Yield to main thread
+                                await new Promise(r => setTimeout(r, 0));
+                            }
+                            await writable.close();
+                        }
+
+                        showToast(`✅ 已存檔: ${safeName}`);
+                        return true;
+                    } catch (err) {
+                        console.error("Silent download error:", err);
+                        showToast(`自動存檔失敗: ${err.message}，將切換至手動模式。`);
+                        // fallthrough
                     }
                 }
-            });
-        }
 
-        async function deleteJob(id) {
-            await fetch(`/api/downloads/${id}`, { method: 'DELETE' });
-            fetchDownloads();
-        }
-
-        async function cancelJob(id) {
-            showConfirm('取消', '確定要取消此任務嗎？', async (yes) => {
-                if (yes) {
-                    await fetch(`/api/downloads/${id}`, { method: 'DELETE' });
-                    fetchDownloads();
-                }
-            });
-        }
-
-        // --- Custom Confirm/Alert ---
-        let confirmCallback = null;
-
-        /**
-         * showConfirm
-         * @param {string} title
-         * @param {string} msg
-         * @param {function} callback
-         * @param {HTMLElement|Event} anchor (optional) Position near this element
-         */
-        function showConfirm(title, msg, callback, anchor = null) {
-            const modal = document.getElementById('confirm-modal');
-            const box = modal.querySelector('.confirm-box');
-
-            document.getElementById('confirm-title').innerText = title;
-            document.getElementById('confirm-msg').innerText = msg;
-
-            modal.classList.add('show');
-
-            if (anchor) {
-                const el = (anchor instanceof HTMLElement) ? anchor : (anchor.target || (anchor.currentTarget || null));
-                if (el) {
-                    const rect = el.getBoundingClientRect();
-                    box.style.position = 'fixed';
-                    box.style.margin = '0';
-
-                    // Simple logic: Place above trigger if space, else below
-                    setTimeout(() => {
-                        const h = box.offsetHeight;
-                        const w = box.offsetWidth;
-
-                        let top = rect.top - h - 15;
-                        if (top < 10) top = rect.bottom + 15;
-
-                        let left = rect.left + (rect.width / 2) - (w / 2);
-                        left = Math.max(10, Math.min(window.innerWidth - w - 10, left));
-
-                        box.style.top = top + 'px';
-                        box.style.left = left + 'px';
-
-                        modal.style.display = 'block'; // Change from flex to block for absolute positioning space
-                        modal.style.background = 'rgba(0,0,0,0.2)';
-                    }, 0);
-                }
-            } else {
-                box.style.position = 'relative';
-                box.style.top = 'auto';
-                box.style.left = 'auto';
-                box.style.margin = 'auto';
-                modal.style.display = 'flex';
-                modal.style.alignItems = 'center';
-                modal.style.justifyContent = 'center';
-                modal.style.background = 'rgba(0,0,0,0.8)';
+                // Normal fallback (Iframe)
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = `/api/download_file/${jobId}`;
+                document.body.appendChild(iframe);
+                setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 60000);
+                return true;
             }
 
-            confirmCallback = callback;
-        }
+            // Override the old triggerFileDownload if present in parent scope?
+            // Since this is at the bottom, it should overwrite any previous function definition with same name in global scope
+            // BUT 'const triggerFileDownload' would error. 'function triggerFileDownload' overwrites.
 
-        function showAlert(title, msg, anchor = null) {
-            showConfirm(title, msg, (yes) => { }, anchor);
-            // Hide cancel button for alerts
-            const cancelBtn = document.getElementById('confirm-modal').querySelector('.btn-secondary');
-            if (cancelBtn) cancelBtn.style.display = 'none';
-        }
+            async function downloadAllFiles() {
+                const jobs = dlJobs.filter(j => j.status === 'completed' || j.status === 'finished');
+                if (jobs.length === 0) return showAlert('提示', '沒有可下載的檔案');
 
-        function closeConfirm(result) {
-            const modal = document.getElementById('confirm-modal');
-            modal.classList.remove('show');
-            modal.style.display = 'none'; // Ensure inline style is cleared
-            // Reset cancel button display for next time
-            const cancelBtn = modal.querySelector('.btn-secondary');
-            if (cancelBtn) cancelBtn.style.display = 'inline-block';
+                const useSilent = !!window.downloadDirHandle;
+                if (!useSilent) toggleDownloads();
+                showToast(useSilent ? '開始批量存檔...' : '開始批量下載...');
 
-            // Allow modal to close and UI to update before executing callback
-            const cb = confirmCallback;
-            confirmCallback = null;
-            if (cb) {
-                setTimeout(() => cb(result), 50);
+                for (const job of jobs) {
+                    try {
+                        const success = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
+                        if (success && useSilent) {
+                            // Delete from server after manual "Save All" trigger too
+                            await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
+                        }
+                        if (!useSilent) await new Promise(r => setTimeout(r, 1500));
+                    } catch (e) { console.error(e); }
+                }
+                if (useSilent) fetchDownloads();
             }
-        }
 
-    </script>
-    <div id="dl-status-pill" class="dl-status-pill" onclick="toggleDownloads(true)">
-        <!-- Dynamic Content -->
-    </div>
+            async function clearFinishedDownloads() {
+                const jobs = dlJobs.filter(j => j.status === 'completed' || j.status === 'finished' || j.status === 'error');
+                if (jobs.length === 0) return;
 
-    <style>
-        .dl-status-pill {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background: rgba(32, 32, 32, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 13px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            cursor: pointer;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
-            opacity: 0;
-            pointer-events: none;
-        }
+                showConfirm('清除', '確定要清除所有已完成的任務嗎？(檔案將被刪除)', async (yes) => {
+                    if (yes) {
+                        showToast('正在清除任務...');
+                        try {
+                            await Promise.all(jobs.map(job => fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' })));
+                            fetchDownloads();
+                            showToast('清除完成');
+                        } catch (e) {
+                            console.error("Clear error", e);
+                            fetchDownloads();
+                        }
+                    }
+                });
+            }
 
-        .dl-status-pill.visible {
-            transform: translateX(-50%) translateY(0);
-            opacity: 1;
-            pointer-events: auto;
-        }
+            async function deleteJob(id) {
+                await fetch(`/api/downloads/${id}`, { method: 'DELETE' });
+                fetchDownloads();
+            }
 
-        .dl-status-pill:hover {
-            background: rgba(45, 45, 45, 0.95);
-            border-color: #3ea6ff;
-        }
+            async function cancelJob(id) {
+                showConfirm('取消', '確定要取消此任務嗎？', async (yes) => {
+                    if (yes) {
+                        await fetch(`/api/downloads/${id}`, { method: 'DELETE' });
+                        fetchDownloads();
+                    }
+                });
+            }
 
-        .dl-status-pill:active {
-            transform: translateX(-50%) scale(0.95);
-        }
+            // --- Custom Confirm/Alert ---
+            let confirmCallback = null;
 
-        @media (max-width: 600px) {
+            /**
+             * showConfirm
+             * @param {string} title
+             * @param {string} msg
+             * @param {function} callback
+             * @param {HTMLElement|Event} anchor (optional) Position near this element
+             */
+            function showConfirm(title, msg, callback, anchor = null) {
+                const modal = document.getElementById('confirm-modal');
+                const box = modal.querySelector('.confirm-box');
+
+                document.getElementById('confirm-title').innerText = title;
+                document.getElementById('confirm-msg').innerText = msg;
+
+                modal.classList.add('show');
+
+                if (anchor) {
+                    const el = (anchor instanceof HTMLElement) ? anchor : (anchor.target || (anchor.currentTarget || null));
+                    if (el) {
+                        const rect = el.getBoundingClientRect();
+                        box.style.position = 'fixed';
+                        box.style.margin = '0';
+
+                        // Simple logic: Place above trigger if space, else below
+                        setTimeout(() => {
+                            const h = box.offsetHeight;
+                            const w = box.offsetWidth;
+
+                            let top = rect.top - h - 15;
+                            if (top < 10) top = rect.bottom + 15;
+
+                            let left = rect.left + (rect.width / 2) - (w / 2);
+                            left = Math.max(10, Math.min(window.innerWidth - w - 10, left));
+
+                            box.style.top = top + 'px';
+                            box.style.left = left + 'px';
+
+                            modal.style.display = 'block'; // Change from flex to block for absolute positioning space
+                            modal.style.background = 'rgba(0,0,0,0.2)';
+                        }, 0);
+                    }
+                } else {
+                    box.style.position = 'relative';
+                    box.style.top = 'auto';
+                    box.style.left = 'auto';
+                    box.style.margin = 'auto';
+                    modal.style.display = 'flex';
+                    modal.style.alignItems = 'center';
+                    modal.style.justifyContent = 'center';
+                    modal.style.background = 'rgba(0,0,0,0.8)';
+                }
+
+                confirmCallback = callback;
+            }
+
+            function showAlert(title, msg, anchor = null) {
+                showConfirm(title, msg, (yes) => { }, anchor);
+                // Hide cancel button for alerts
+                const cancelBtn = document.getElementById('confirm-modal').querySelector('.btn-secondary');
+                if (cancelBtn) cancelBtn.style.display = 'none';
+            }
+
+            function closeConfirm(result) {
+                const modal = document.getElementById('confirm-modal');
+                modal.classList.remove('show');
+                modal.style.display = 'none'; // Ensure inline style is cleared
+                // Reset cancel button display for next time
+                const cancelBtn = modal.querySelector('.btn-secondary');
+                if (cancelBtn) cancelBtn.style.display = 'inline-block';
+
+                // Allow modal to close and UI to update before executing callback
+                const cb = confirmCallback;
+                confirmCallback = null;
+                if (cb) {
+                    setTimeout(() => cb(result), 50);
+                }
+            }
+
+        </script>
+        <div id="dl-status-pill" class="dl-status-pill" onclick="toggleDownloads(true)">
+            <!-- Dynamic Content -->
+        </div>
+
+        <style>
             .dl-status-pill {
-                bottom: 80px;
-                /* Above bottom nav if any, or just safe zone */
-                font-size: 12px;
-                padding: 8px 16px;
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%) translateY(100px);
+                background: rgba(32, 32, 32, 0.9);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: #fff;
+                padding: 10px 20px;
+                border-radius: 25px;
+                font-size: 13px;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+                z-index: 2000;
+                cursor: pointer;
+                transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+                opacity: 0;
+                pointer-events: none;
             }
-        }
-    </style>
+
+            .dl-status-pill.visible {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            .dl-status-pill:hover {
+                background: rgba(45, 45, 45, 0.95);
+                border-color: #3ea6ff;
+            }
+
+            .dl-status-pill:active {
+                transform: translateX(-50%) scale(0.95);
+            }
+
+            @media (max-width: 600px) {
+                .dl-status-pill {
+                    bottom: 80px;
+                    /* Above bottom nav if any, or just safe zone */
+                    font-size: 12px;
+                    padding: 8px 16px;
+                }
+            }
+        </style>
 </body>
 
 </html>
