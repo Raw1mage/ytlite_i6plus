@@ -48,7 +48,7 @@
                     return;
                 }
                 data = await response.json();
-                console.log('[loadVideos] category:', currentCategory, 'items:', data?.videos?.length || 0, 'next:', data?.nextPageToken);
+                console.log('[loadVideos] category:', currentCategory, 'items:', (data && data.videos ? data.videos.length : 0), 'next:', (data ? data.nextPageToken : ''));
             }
 
             if (data.videos && data.videos.length > 0) {

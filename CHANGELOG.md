@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.3.5] - 2026-01-19
+### Fixed
+- **Old Device Compatibility**: Resolved Critical UI and JavaScript issues for iPhone 5s (iOS 12 / Safari 12).
+    - Fixed `z-index` layering issue where the header blocked the navigation menu.
+    - Replaced incompatible "Optional Chaining" (`?.`) syntax with ES5-compatible checks to prevent script crashes.
+
 ## [0.3.3] - 2026-01-18
 ### Added
 - **Dynamic Playlist**: Automatically generates a playlist context when a video is played from any grid (Search Results, Channel Videos, History, etc.), enabling continuous auto-play of the visible list.

@@ -8,6 +8,8 @@
 - [x] **Playback**: Video playback via YouTube Iframe API works.
 - [x] **Navigation**: Basic "Back" button support implemented using History API (`pushState`/`popstate`).
 - [x] **Performance**: Low-bandwidth optimization (minimized thumbnails, no heavy JS frameworks).
+- [x] **Compatibility**: Restored full functionality for older devices (iPhone 5s / iOS 12).
+
 
 ### Known Issues & Active blockers
 - **UI Layout**: The AI assistant struggles with precise CSS layout on specific mobile viewports (e.g., removing letterboxing gaps without breaking the document flow). Layout remains "functional but unpolished".

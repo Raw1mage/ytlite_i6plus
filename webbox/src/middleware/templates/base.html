@@ -65,7 +65,7 @@
             height: 100%;
             width: 250px;
             background: #212121;
-            z-index: 1200;
+            z-index: 3000;
             transform: translateX(-100%);
             transition: transform 0.3s ease;
             overflow-y: auto;
@@ -85,7 +85,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.5);
-            z-index: 1100;
+            z-index: 2900;
             display: none;
         }
 
@@ -1288,7 +1288,8 @@
                     // Get Video Data from Card
                     let title = 'Untitled';
                     let uploader = 'Unknown';
-                    let thumb = card.querySelector('img')?.src || '';
+                    let img = card.querySelector('img');
+                    let thumb = img ? img.src : '';
                     let channelId = card.getAttribute('data-channel') || '';
 
                     const titleEl = card.querySelector('.title');
