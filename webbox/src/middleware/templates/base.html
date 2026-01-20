@@ -2563,13 +2563,8 @@
                     let name = handle.name;
                     window.downloadDirLabel = null; // reset
 
-                    // If name is ambiguous (root), ask user
-                    if (!name || name === '' || name === '\\' || name === '/') {
-                        const userLabel = prompt('偵測到磁碟根目錄，為方便識別，請輸入磁碟代號 (例如 E):', 'E');
-                        if (userLabel && userLabel.trim()) {
-                            window.downloadDirLabel = userLabel.trim().toUpperCase().replace(':', '');
-                        }
-                    }
+                    // If name is ambiguous (root), logic continues to default display
+                    // Removed manual prompt to improve UX friction
                     await saveLabel(window.downloadDirLabel);
 
                     updateFolderUI();
