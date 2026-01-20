@@ -154,6 +154,36 @@
             height: 24px;
         }
 
+        /* Secondary Header (Chips) */
+        .secondary-header {
+            position: sticky;
+            top: 56px;
+            /* Below Main Header */
+            background: #202020;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 8px 15px;
+            border-bottom: 1px solid #333;
+            overflow-x: auto;
+            white-space: nowrap;
+            /* Animation for Drawer effect */
+            transition: all 0.3s ease;
+            height: 52px;
+            box-sizing: border-box;
+            transform-origin: top;
+            opacity: 1;
+        }
+
+        .secondary-header.collapsed {
+            height: 0;
+            padding: 0 15px;
+            /* Keep horizontal padding to prevent layout shift horizontally, or just use 0 */
+            border-bottom: none;
+            opacity: 0;
+            pointer-events: none;
+        }
+
         /* Header Search Bar */
         .header-search {
             flex: 1;
@@ -1617,6 +1647,15 @@
         const iconDown = '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg>'; // Expand
         const iconUp = '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/></svg>'; // Collapse
 
+        // Helper to toggle Secondary Header
+        function toggleSecondaryHeader(collapse) {
+            const el = document.querySelector('.secondary-header');
+            if (el) {
+                if (collapse) el.classList.add('collapsed');
+                else el.classList.remove('collapsed');
+            }
+        }
+
         // --- Player Logic ---
         function toggleDesc() {
             const desc = document.getElementById('player-desc');
@@ -1654,6 +1693,10 @@
                     overlay.style.display = 'none';
                     overlay.classList.remove('minimized');
                     window.isMinimized = false;
+
+                    // Show Secondary Header
+                    toggleSecondaryHeader(false);
+
                     if (iframe) {
                         iframe.src = '';
                         iframe.style.display = 'none';
@@ -1860,9 +1903,8 @@
         }
 
         async function openPlayer(video, context) {
-            // Hide Secondary Header
-            const secHeader = document.querySelector('.secondary-header');
-            if (secHeader) secHeader.style.display = 'none';
+            // Collapse Secondary Header (Drawer Effect)
+            toggleSecondaryHeader(true);
 
             // Force full screen mode
             const overlay = document.getElementById('player-overlay');
@@ -2398,7 +2440,7 @@
             </div>
             <div class="modal-footer" style="flex-wrap: wrap;">
                 <button class="btn-primary" id="btn-set-folder" onclick="setDownloadFolder()"
-                    style="background: #444; color: #fff; margin-right: auto;">📂 設定下載目錄</button>
+                    style="background: #444; color: #fff; margin-right: 5px;">📂 設定下載目錄</button>
                 <button class="btn-secondary" onclick="clearFinishedDownloads()">清除已完成</button>
                 <button class="btn-primary btn-green" onclick="downloadAllFiles()">全部存檔</button>
             </div>
@@ -2421,7 +2463,7 @@
         // --- DOWNLOADS MANAGER ---
         let dlInterval = null;
         let dlJobs = [];
-        window.downloadDirHandle = null;
+        window.downloadDirLabel = null;
 
         // Persistence in IDB
         async function getSavedHandle() {
@@ -2438,12 +2480,36 @@
             } catch (e) { return null; }
         }
 
+        async function getSavedLabel() {
+            try {
+                const db = await openDB();
+                const tx = db.transaction('settings', 'readonly');
+                const store = tx.objectStore('settings');
+                const label = await new Promise((res) => {
+                    const req = store.get('download_dir_label');
+                    req.onsuccess = () => res(req.result);
+                    req.onerror = () => res(null);
+                });
+                return label;
+            } catch (e) { return null; }
+        }
+
         async function saveHandle(handle) {
             try {
                 const db = await openDB();
                 const tx = db.transaction('settings', 'readwrite');
                 const store = tx.objectStore('settings');
                 store.put(handle, 'download_dir');
+            } catch (e) { console.error(e); }
+        }
+
+        async function saveLabel(label) {
+            try {
+                const db = await openDB();
+                const tx = db.transaction('settings', 'readwrite');
+                const store = tx.objectStore('settings');
+                if (label) store.put(label, 'download_dir_label');
+                else store.delete('download_dir_label');
             } catch (e) { console.error(e); }
         }
 
@@ -2492,6 +2558,20 @@
                 if (await verifyPermission(handle)) {
                     window.downloadDirHandle = handle;
                     await saveHandle(handle);
+
+                    // Infer or ask for label
+                    let name = handle.name;
+                    window.downloadDirLabel = null; // reset
+
+                    // If name is ambiguous (root), ask user
+                    if (!name || name === '' || name === '\\' || name === '/') {
+                        const userLabel = prompt('偵測到磁碟根目錄，為方便識別，請輸入磁碟代號 (例如 E):', 'E');
+                        if (userLabel && userLabel.trim()) {
+                            window.downloadDirLabel = userLabel.trim().toUpperCase().replace(':', '');
+                        }
+                    }
+                    await saveLabel(window.downloadDirLabel);
+
                     updateFolderUI();
                     showToast('已設定下載目錄');
                 }
@@ -2502,8 +2582,23 @@
 
         function updateFolderUI() {
             const btn = document.getElementById('btn-set-folder');
+
             if (btn && window.downloadDirHandle) {
-                btn.innerText = `📁 已選: ${window.downloadDirHandle.name}`;
+                // Priority: Use custom label if available
+                if (window.downloadDirLabel) {
+                    btn.innerText = `📁 已選: ${window.downloadDirLabel}:\\`;
+                    btn.style.background = '#2ba640';
+                    btn.style.borderColor = '#2ba640';
+                    return;
+                }
+
+                let name = window.downloadDirHandle.name;
+                // Beautify root display
+                if (name === '\\') name = '本機磁碟根目錄 (\\)';
+                // If it looks like a drive letter "E:", make it "E:\"
+                if (name && name.match(/^[a-zA-Z]:$/)) name = name + "\\";
+
+                btn.innerText = `📁 已選: ${name}`;
                 btn.style.background = '#2ba640';
                 btn.style.borderColor = '#2ba640';
             }
@@ -2511,13 +2606,10 @@
 
         // Auto-load on init
         (async () => {
-            const handle = await getSavedHandle();
-            if (handle) {
-                // We don't verify permission immediately to avoid popup on landing
-                // but we store it
-                window.downloadDirHandle = handle;
-                // Wait for DOM
-                setTimeout(updateFolderUI, 500);
+            window.downloadDirHandle = await getSavedHandle();
+            window.downloadDirLabel = await getSavedLabel();
+            if (window.downloadDirHandle) {
+                updateFolderUI();
             }
         })();
 
