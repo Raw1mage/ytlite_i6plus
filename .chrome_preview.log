@@ -31,3 +31,16 @@ Created TensorFlow Lite XNNPACK delegate for CPU.
 [26656:26656:0118/182749.133124:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
 [26656:26656:0118/182750.837726:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
 [26656:26656:0118/182752.059258:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/285d885a-222b-497f-84c2-9f9f02016bce
+[6322:6322:0120/110332.822738:ERROR:dbus/object_proxy.cc:573] Failed to call method: org.freedesktop.DBus.Properties.GetAll: object_path= /org/freedesktop/UPower/devices/DisplayDevice: org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.UPower was not provided by any .service files
+Created TensorFlow Lite XNNPACK delegate for CPU.
+[6368:6368:0120/110333.496068:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[6322:6350:0120/110335.935873:ERROR:google_apis/gcm/engine/registration_request.cc:292] Registration response error message: QUOTA_EXCEEDED
+[6322:6350:0120/110336.003962:ERROR:google_apis/gcm/engine/registration_request.cc:292] Registration response error message: DEPRECATED_ENDPOINT
+[6368:6368:0120/110344.981132:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[6322:6350:0120/110401.182191:ERROR:google_apis/gcm/engine/registration_request.cc:292] Registration response error message: DEPRECATED_ENDPOINT
+[6322:6350:0120/110504.353128:ERROR:google_apis/gcm/engine/registration_request.cc:292] Registration response error message: QUOTA_EXCEEDED
+[6368:6368:0120/110600.164187:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[6368:6368:0120/110611.296413:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted
+[6368:6368:0120/110611.840505:ERROR:gpu/command_buffer/service/context_group.cc:130] ContextResult::kFatalFailure: WebGL1 blocklisted

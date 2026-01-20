@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.3.6] - 2026-01-20
+### Added
+- **System**: Added Windows Startup Script (`ytlite_boot.vbs`) to automatically start WSL and ytlite services on Windows login.
+
+### Changed
+- **UI**: Removed the "Playback Obstruction" (Manual Proxy Switch) button as the system now reliably handles auto-switching.
+
 ## [0.3.5] - 2026-01-19
 ### Fixed
 - **Old Device Compatibility**: Resolved Critical UI and JavaScript issues for iPhone 5s (iOS 12 / Safari 12).
