@@ -1,55 +1,85 @@
-# 系統架構（繁體）
+# YT Lite 系統架構分析 (Architecture Sync)
 
-## 高層示意
+## 1. 系統高層拓墣 (High-Level Topology)
+
+YT Lite 採用中介代理架構，透過本地的中間件負責組裝前端所需要的資料。主要目的在減輕舊設備（如 iPhone 6 Plus、iOS 12 Safari WebClip）的運算壓力與網路請求數，並將複雜的封鎖、訂閱過濾與快取等資源密集型作業全數轉移到伺服器層。
 
 ```mermaid
 graph TD
-    User[使用者] -->|Safari WebClip / 瀏覽器| Client[iPhone 6 Plus]
-    Client -->|HTTP(S)| Nginx[Nginx 反向代理 (選用)]
-    Nginx -->|1214| API[FastAPI 中介層]
-    API -->|1215| Invidious[Invidious 抓取]
-    API -->|HTTPS| GAPI[YouTube Data API]
-    Invidious --> DB[(PostgreSQL)]
-    Invidious -->|HTTPS| YT[YouTube]
-    API -->|HTML/JSON| Client
+    User["使用者 (iPhone 6+ / Safari)"] -->|HTTP(S) Port 1214| API["FastAPI 中介層 (Container: ytlite)"]
+    
+    subgraph yt-lite 核心中介層
+        API -->|Jinja2 Templates| UI["伺服器端渲染 (SSR HTML/JS)"]
+        API -->|背景佇列: queue_manager.py| YTDLP["yt-dlp 快取/下載 (downloader.py)"]
+        YTDLP -->|儲存 .mp3/.mp4| FS_Data["本機檔案系統 (/app/data/)<br/>(Cache & Downloads)"]
+        API -->|讀寫 JSON| FS_User["使用者設定 (/data/users)<br/>Session (/data/sessions)"]
+    end
+
+    subgraph 遠端或外部代理層
+        API -->|Metadata / Search (Port: 1215)| Invidious["Invidious 引擎 (Container: ytlite-engine)"]
+        Invidious --> IDB[("PostgreSQL (Container: ytlite-postgres)")]
+        Invidious -->|Proxy Request| YT["YouTube Servers"]
+        API -->|OAuth2 (認證 / 訂閱列表)| GAPI["Google API / YouTube Data API"]
+        YTDLP -->|媒體串流下載| YT
+    end
 ```
 
-## 元件說明
+---
 
-### 1. 前端客戶端（iPhone 6 Plus / Safari）
-- **技術**：HTML5 + Vanilla JS，無大型框架，行動優先設計。
-- **功能**：全螢幕/迷你播放器、語音搜尋、動態導覽 Chips、訂閱內容同步顯示。
-- **播放**：以 YouTube iframe 為核心，解決 Invidious 串流不穩問題。
+## 2. 核心元件與職責劃分
 
-### 2. 中介層（FastAPI，預設 1214）
-- **核心邏輯**：
-  - **OAuth2**：處理 Google 登入，Session 儲存於伺服器端文件系統 (`/app/data/sessions/`)。
-  - **資料聚合**：實作「混合 Feed」，將訂閱頻道最新影片 (Invidious) 與隨機訂閱頻道 (YouTube API) 混合。
-  - **使用者資料**：管理封鎖清單與自訂導覽設定，存於 `/app/data/users/`。
-- **模板**：Jinja2 伺服器端渲染，直接產生適合舊版 iOS 的 HTML。
+### 2.1. 中介層 API (FastAPI)
+- **進入點**：`webbox/src/middleware/main.py`
+- **職責**：
+  - **靜態資源與模版**：使用 `Jinja2Templates` 直接將畫面輸出給老裝置，減少 SPA (Single Page Application) 的 JS 解析壓力。路由包含 `/` (首頁)、`/watch`、`/playlist`，以及新功能 `/downloads`。
+  - **資料聚合 (Data Aggregation)**：實作混合訂閱邏輯。將 YouTube API 返回的私人訂閱清單，加上 Invidious 查詢到的「台灣熱門」與搜尋結果混合。
+  - **授權 (Authentication)**：透過 `client_secret.json` 完成 Google OAuth2 流程。Session 採無狀態 cookie，金鑰狀態寫死於本地路徑 `/app/data/sessions/`，避免外部資料庫依賴。
+  - **過濾機制 (Blocklist)**：根據 `/app/data/users/{uid}_blocked.json`，在伺服器端直接拿掉不想顯示的頻道影片。
 
-### 3. 抓取與資料層
-- **Invidious**：主要的影片 Metadata 來源 (搜尋、頻道影片)，預設埠 1215。
-- **YouTube Data API**：僅用於 OAuth 授權與同步訂閱清單 (因為 Invidious 處理私人訂閱較複雜)。
-- **PostgreSQL**：Invidious 的資料庫，預設埠 1216。
+### 2.2. 非同步快取與下載佇列 (`queue_manager.py` / `downloader.py`)
+為此專案新增的另一項重要核心。
+- **背景任務池**：使用 `asyncio.get_event_loop().run_in_executor()` 來執行 `yt-dlp` 這個容易產生阻擋行為的高延遲任務。
+- **分離式儲存策略**：
+  - **`/app/data/downloads`**：給定長久保留的使用者下載音訊/影片。
+  - **`/app/data/cache`**：作為短期或自動快取區，並且有 `_enforce_cache_limit()` 定期清除舊的資源 (LRU 機制)。
 
-### 4. 資料儲存結構 (`/app/data/`)
-- `users/`：使用者設定檔 (e.g., `{uid}_blocked.json`, `{uid}_nav.json`)。
-- `sessions/`：OAuth Session 快取檔。
-- `client_secret.json`：Google OAuth 憑證。
+### 2.3. Invidious 代理 (The Bone)
+- **職責**：因為直接 Parse YouTube 經常失敗，必須依賴 `ytlite-engine`。它不僅擋下 YouTube Rate-limit 的問題，還提供了簡化版的 REST API 供我們的 FastAPI 獲取 Metadata。
+- **儲存**：依賴 `ytlite-postgres` 作為它的 Channel 狀態快取庫。
 
-## 數據流程
-1. **首頁載入**：
-   - 未登入：請求 Invidious 搜尋「台灣熱門」。
-   - 已登入：並行請求 Invidious (針對訂閱頻道) 與 YouTube API (確認訂閱列表)，聚合後回傳混合 Feed。
-2. **搜尋/導覽**：
-   - 使用者點擊導覽 Chip → FastAPI 讀取 `users/{uid}_nav.json` 取得對應查詢詞 → 呼叫 Invidious Search API。
-   - 回傳結果前，過濾掉 `users/{uid}_blocked.json` 中的頻道。
-3. **播放**：
-   - 前端點擊影片 → FastAPI 請求 Invidious 取得影片資訊 (Metadata) → 回傳頁面 (含 iframe)。
-   - 若 Metadata 失敗，僅回傳 iframe 嘗試直接播放。
+### 2.4. 客戶端 (The Skin)
+- **技術棧**：原生 HTML5 + Vanilla JS (`templates/`)，無 NPM 框架。
+- **相容性考量**：
+  - 因為 iOS 12 不支援某些跨域資源或是較新版本的 fetch / Array API，全部採用保守語意攥寫。
+  - 核心痛點「播放不穩定」的解法：主播放器雖然可以抓 Invidious 直連 MP4 檔，但以 `YouTube Iframe API` 為保底（Fallback），以確保持續可看性。
+  - **PWA (Progressive Web App)**：支援加到主畫面，支援迷你背景播放體驗。
 
-## 設計考量
-- **運算轉移**：所有複雜邏輯 (聚合、過濾、模板) 皆在 Server 端完成，減輕 iPhone 6+負擔。
-- **容錯性**：Invidious 服務不穩時，iframe 仍可獨立運作；圖片/標題載入失敗不應阻斷使用者操作。
-- **隱私與個人化**：Token 與設定檔皆儲存於本地伺服器，不依賴瀏覽器 LocalStorage (除了基本的 UI 狀態)。
+---
+
+## 3. 資料與權限流轉（Data Flow）
+
+1. **認證流 (Auth Flow)**：
+   - 點擊登入 -> FastAPI 重導向至 `accounts.google.com` (請求唯讀 YT 權限)。
+   - Callback -> `oauth2callback` -> Google 給予 Token。
+   - API 將 Token 寫入 `/app/data/sessions/{session_id}.json` 並設定給 Client。
+
+2. **頁面/影片載入流 (Feed Flow)**：
+   - 使用者發出主頁請求 `/`。
+   - `main.py` 平行發送要求給 Invidious (獲取 trending/search) 與 Google API (獲取訂閱清單)。
+   - 將兩者進行 Merge、去除 Blocklist。
+   - 輸出給 `base.html` 中渲染成 Cards。
+
+3. **背景下載流 (Download/Cache Flow)**：
+   - 使用者點選「下載 MP3」或背景自動快取 -> 發出 `/api/downloads/add` POST 請求。
+   - `queue_manager.add_job` 生成唯一 Job ID，丟入內部 Queue。
+   - `_worker` 背景協程透過 `downloader.py` (呼叫 yt-dlp) 開始抓取。進度寫入 Job dict。
+   - 網頁透過 `/api/downloads` 輪詢取得即時 % 數，並在 UI (`dl-status-pill`) 上繪製進度。
+
+---
+
+## 4. 基礎架構與部署方式
+本專案採用 `docker-compose.yml` 進行服務一體化部署，並利用 `webctl.sh` 控制啟停。
+
+- **網路隔離**：外部只開 Port `1214` 介接 FastAPI，並可掛載 Nginx。
+- **資料庫與內部服務**：`ytlite-engine` (1215) 與 `ytlite-postgres` (1216) 皆跑在 Docker 內部網路 `3000`/`5432`，受中介層完全保護。
+- **檔案權限**：/app/data 映射至本地磁碟區 `/opt/ytlite_v3/user_db` (包含下載、快取與使用者檔案)，確保 Container 重建後資料必定保留。

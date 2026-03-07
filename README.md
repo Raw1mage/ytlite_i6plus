@@ -38,9 +38,8 @@
 - **輕量化架構**：針對舊款 iPhone 6 Plus (iOS 12) 優化，減少不必要的 JS 運算。
 
 ## 文件維護指南
-- **計畫/進度**：功能開發前後請更新 `docs/PLAN.md` 與 `docs/PROGRESS.md`。
-- **除錯紀錄**：遇到問題請記錄於 `docs/DEBUGLOG.md`，長篇分析放入 `docs/HISTORY/`。
-- **架構變更**：若有新增服務或改變流程，請同步更新 `ARCHITECTURE.md`。
+- **開發事件/歷史追蹤**：所有的除錯歷史、進度與變更紀錄已統一轉移至 `docs/events/` 資料夾，並以 `event_<YYYYMMDD>_<topic>.md` 的格式命名。任何非瑣碎開發任務必須在該資料夾內建立追蹤文件。
+- **架構變更**：若有新增服務或改變流程，請同步更新 `docs/ARCHITECTURE.md`，並確保採用全貌同步原則。
 
 ## 目前風險與限制
 - **Invidious 依賴**：Metadata（標題/圖片）依賴 Invidious 實例，若實例不穩可能導致部分資訊載入失敗（顯示 Loading），但不影響 iframe 播放。
@@ -48,8 +47,6 @@
 - **舊機效能**：雖然已優化，但在舊裝置上仍應避免快速頻繁切換頁面。
 
 ## 文件導覽
-- 架構說明：`ARCHITECTURE.md`
-- 開發計畫：`docs/PLAN.md`
-- 進度摘要：`docs/PROGRESS.md`
-- 除錯紀錄：`docs/DEBUGLOG.md`
+- 架構說明：`docs/ARCHITECTURE.md`
+- 開發任務與歷史：`docs/events/` (如除錯、變更日誌、計畫歷史)
 - 團隊作業：`gemini.md`

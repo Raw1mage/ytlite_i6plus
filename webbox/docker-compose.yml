@@ -1,3 +1,4 @@
+name: ytlite
 services:
   # 1. Invidious Database
   invidious-db:
@@ -41,7 +42,7 @@ services:
     build:
       context: .
       dockerfile: BUILD/middleware/Dockerfile
-    container_name: ytlite-web
+    container_name: ytlite
     restart: unless-stopped
     ports:
       - "1214:8080" # Web interface

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 ## [0.3.6] - 2026-01-20
 ### Added
 - **System**: Added Windows Startup Script (`ytlite_boot.vbs`) to automatically start WSL and ytlite services on Windows login.
+- **UI Animation**: Implemented a collapsible drawer animation for the secondary header (filter chips). It now smoothly slides up when the player opens and expands when closed.
+
+### Removed
+- **Open Folder**: Removed the "Open File Explorer" button as it is incompatible with Client-Server architectures due to browser security sandboxing.
 
 ### Changed
 - **UI**: Removed the "Playback Obstruction" (Manual Proxy Switch) button as the system now reliably handles auto-switching.

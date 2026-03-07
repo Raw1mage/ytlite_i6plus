@@ -3,6 +3,9 @@
 # YT Lite v3 Control Script
 # Usage: ./webctl.sh [command]
 
+# Change to the compose file directory so volumes resolve correctly
+cd "$(dirname "$0")/../webbox" || exit 1
+
 COMPOSE_FILE="docker-compose.yml"
 PROJECT_NAME="ytlite"
 

@@ -1,0 +1,15 @@
+nohup: ignoring input
+Starting Download Folder Watcher...
+Watching: /home/pkcs12/projects/ytlite/webbox/src/middleware/OPEN_DOWNLOADS.signal
+Signal received. Target: EXPLORER
+'\\wsl.localhost\Ubuntu-24.04\home\pkcs12\projects\ytlite' 
+是目前用來啟動 CMD.EXE 的目錄路徑。不支援 UNC 路徑。
+預設目錄是 Windows 目錄。
+Signal received. Target: /app/data/downloads
+'\\wsl.localhost\Ubuntu-24.04\home\pkcs12\projects\ytlite' 
+是目前用來啟動 CMD.EXE 的目錄路徑。不支援 UNC 路徑。
+預設目錄是 Windows 目錄。
+Signal received. Target: /app/data/downloads
+'\\wsl.localhost\Ubuntu-24.04\home\pkcs12\projects\ytlite' 
+是目前用來啟動 CMD.EXE 的目錄路徑。不支援 UNC 路徑。
+預設目錄是 Windows 目錄。

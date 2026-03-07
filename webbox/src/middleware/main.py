@@ -1101,3 +1101,66 @@ async def downloads_page(request: Request):
     creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
     return templates.TemplateResponse("downloads.html", {"request": request, "logged_in": logged_in})
+
+class OpenFolderRequest(pydantic.BaseModel):
+    path: str = ""
+
+@app.post("/api/open_downloads_folder")
+async def open_downloads_folder_api(body: OpenFolderRequest = OpenFolderRequest()):
+    """
+    Signal the host (WSL) to open the download folder via a shared file trigger.
+    Since Docker cannot launch explorer.exe, we write a signal file that a host script watches.
+    If 'path' is provided in body, we ask the host to open THAT path (e.g. E:\).
+    Otherwise we open the internal server downloads folder.
+    """
+    try:
+        # Create a signal file in the app root (mapped to src/middleware on host)
+        # This volume is owned by the user so permissions should be fine.
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+            
+        signal_file = os.path.join(base_dir, "OPEN_DOWNLOADS.signal")
+        
+        target_path = body.path
+        if not target_path:
+             target_path = os.path.abspath(DOWNLOADS_DIR)
+        
+        # Write the target path into the signal file for the watcher to read
+        print(f"Propagating signal to host via file: {signal_file}")
+        with open(signal_file, "w") as f:
+            f.write(target_path)
+            f.flush()
+            os.fsync(f.fileno())
+            
+        print(f"Signal file created at {signal_file} with target: {target_path}")
+        
+        # Fallback: If running locally (not docker), we can still try standard open
+        # just in case the watcher isn't running or needed, BUT only if it is a local path.
+        # If it is a Windows path (E:\), python running in WSL can't easily open it WITHOUT explorer.exe
+        # but explorer.exe CAN open E:\ directly.
+        if "microsoft-standard" in os.uname().release:
+             # Check if we are NOT in docker (heuristic)
+             if not os.path.exists("/.dockerenv"):
+                 import subprocess
+                 
+                 if target_path == "EXPLORER":
+                     # User just wants to open a default Explorer window
+                     # Using cmd /c start is often more robust in WSL
+                     subprocess.run(["cmd.exe", "/C", "start", "explorer"])
+                 else:
+                     path_arg = target_path
+                     # If it is a WSL path, convert to Windows format
+                     if target_path.startswith("/"):
+                         try:
+                            path_arg = subprocess.check_output(["wslpath", "-w", target_path]).strip().decode('utf-8')
+                         except:
+                            pass # Keep as is if conversion fails
+                     
+                     subprocess.run(["explorer.exe", path_arg])
+
+        return {"status": "success", "message": "Request sent to host"}
+    except Exception as e:
+        print(f"Failed to signal folder open: {e}")
+        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(e)}

@@ -2,7 +2,7 @@
 # Usage: ./browser_preview.sh [start|stop|logs|status]
 
 USER_DATA_DIR="$HOME/.chrome_dev_profile"
-LOG_FILE="./.chrome_preview.log"
+LOG_FILE="$(dirname "$0")/../logs/chrome_preview.log"
 PORT=9222
 
 function get_pid() {
