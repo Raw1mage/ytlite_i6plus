@@ -11,6 +11,8 @@ from googleapiclient.errors import HttpError
 import google_auth_oauthlib.flow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request as GoogleRequest
+from urllib.parse import urlencode
+from urllib.parse import urlparse, parse_qs
 
 import uuid
 
@@ -164,6 +166,34 @@ def normalize_thumb(video_id: str, thumb_url: str) -> str:
         return f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
     return thumb_url or f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
 
+def extract_youtube_video_id(raw: str) -> str | None:
+    if not raw:
+        return None
+
+    text = raw.strip()
+    if not text:
+        return None
+
+    parsed = urlparse(text)
+    host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").strip("/")
+
+    if host in {"youtu.be", "www.youtu.be"}:
+        candidate = path.split("/")[0] if path else ""
+        return candidate[:11] if len(candidate) >= 11 else None
+
+    if host in {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com"}:
+        if path == "watch":
+            candidate = parse_qs(parsed.query).get("v", [""])[0]
+            return candidate[:11] if len(candidate) >= 11 else None
+
+        parts = [p for p in path.split("/") if p]
+        if len(parts) >= 2 and parts[0] in {"shorts", "embed", "live", "v"}:
+            candidate = parts[1]
+            return candidate[:11] if len(candidate) >= 11 else None
+
+    return None
+
 def get_creds(request: Request):
     info = get_creds_from_session(request)
     if info:
@@ -239,6 +269,7 @@ async def login(request: Request):
     
     request.session['state'] = state
     request.session['redirect_uri'] = redirect_uri
+    request.session['code_verifier'] = flow.code_verifier
     return RedirectResponse(authorization_url)
 
 @app.get("/oauth2callback")
@@ -246,13 +277,22 @@ async def oauth2callback(request: Request):
     state = request.session.get('state')
     if not state:
         return "Error: Session state missing."
+    code_verifier = request.session.get('code_verifier')
+    if not code_verifier:
+        return "Error: Session code verifier missing."
+    redirect_uri = request.session.get('redirect_uri')
+    if not redirect_uri:
+        return "Error: Session redirect URI missing."
     
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE, SCOPES, state=state)
-    flow.redirect_uri = request.session.get('redirect_uri')
+        CLIENT_SECRETS_FILE, SCOPES, state=state, code_verifier=code_verifier,
+        autogenerate_code_verifier=False)
+    flow.redirect_uri = redirect_uri
     
     # Use the authorization server's response to fetch the OAuth 2.0 token.
-    authorization_response = str(request.url).replace('8080', '1214')
+    authorization_response = redirect_uri
+    if request.query_params:
+        authorization_response = f"{redirect_uri}?{urlencode(list(request.query_params.multi_items()))}"
     # If using http, ensure library allows insecure
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
@@ -577,6 +617,11 @@ async def get_videos(request: Request, category: str = "all", pageToken: str = "
 
 @app.get("/search")
 async def search_page(request: Request, q: str):
+    direct_video_id = extract_youtube_video_id(q)
+    if direct_video_id:
+        print(f"[search] direct video url detected: {q} -> {direct_video_id}")
+        return RedirectResponse(url=f"/?v={direct_video_id}&list=dynamic_result", status_code=307)
+
     creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
     
@@ -843,8 +888,8 @@ async def get_stream_proxy(request: Request, v: str):
                 })
             
             if not best_stream:
-                 return {"error": "No suitable stream found"}
-            
+                 return {"error": "No suitable stream found", "info": info, "related_videos": related}
+
             # Proxy the stream via our own server to bypass IP/Domain restrictions
             import urllib.parse
             encoded_url = urllib.parse.quote(best_stream)
