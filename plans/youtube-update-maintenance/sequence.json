@@ -1,0 +1,22 @@
+[
+  {
+    "diagram_title": "Failure Report to Recovery",
+    "scenario": "A user reports YouTube download or playback failure and the maintainer runs the update SOP.",
+    "moduleRef": "A1",
+    "participants": [
+      { "id": "P1", "name": "Maintainer", "type": "actor" },
+      { "id": "P2", "name": "Maintenance SOP", "type": "system", "componentRef": "SYS1" },
+      { "id": "P3", "name": "Downloader", "type": "component", "componentRef": "C1" },
+      { "id": "P4", "name": "Queue Manager", "type": "component", "componentRef": "C2" }
+    ],
+    "messages": [
+      { "id": "MSG1", "from": "P1", "to": "P2", "label": "start review()", "type": "sync", "order": 1 },
+      { "id": "MSG2", "from": "P2", "to": "P4", "label": "inspect logs and job state", "type": "sync", "order": 2 },
+      { "id": "MSG3", "from": "P4", "to": "P3", "label": "run yt-dlp update target", "type": "sync", "order": 3 },
+      { "id": "MSG4", "from": "P3", "to": "P2", "label": "return validation result", "type": "return", "order": 4 }
+    ],
+    "fragments": [
+      { "id": "FRAG1", "type": "alt", "label": "If update fails, re-plan and revisit dependencies", "messageRefs": ["MSG3", "MSG4"] }
+    ]
+  }
+]

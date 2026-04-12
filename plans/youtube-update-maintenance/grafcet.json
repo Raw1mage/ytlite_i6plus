@@ -1,0 +1,34 @@
+[
+  {
+    "StepNumber": 1,
+    "ModuleRef": "A1",
+    "StepType": "initial",
+    "StepAction": "Observe failure or schedule review",
+    "Condition": [],
+    "LinkOutputType": "track"
+  },
+  {
+    "StepNumber": 2,
+    "ModuleRef": "A1",
+    "StepType": "normal",
+    "StepAction": "Collect update targets",
+    "Condition": ["review starts or failure reported"],
+    "LinkOutputType": "track"
+  },
+  {
+    "StepNumber": 3,
+    "ModuleRef": "A2",
+    "StepType": "normal",
+    "StepAction": "Apply updates",
+    "Condition": ["update plan is defined"],
+    "LinkOutputType": "divergence_or"
+  },
+  {
+    "StepNumber": 4,
+    "ModuleRef": "A3",
+    "StepType": "normal",
+    "StepAction": "Validate recovery",
+    "Condition": ["files or dependencies are updated"],
+    "LinkOutputType": "convergence_and"
+  }
+]

@@ -1,0 +1,47 @@
+{
+  "diagram_title": "YouTube Update Maintenance — C4 Component Diagram",
+  "diagram_level": "component",
+  "systems": [
+    { "id": "SYS1", "name": "YT Lite", "description": "The full application stack for YouTube browsing, playback, and downloads.", "external": false },
+    { "id": "SYS2", "name": "YouTube", "description": "External video platform and data source.", "external": true }
+  ],
+  "containers": [
+    { "id": "CT1", "name": "Middleware API", "description": "FastAPI service that coordinates downloads and UI.", "technology": "FastAPI", "systemRef": "SYS1" },
+    { "id": "CT2", "name": "Invidious Engine", "description": "Metadata and proxy service for YouTube content.", "technology": "Invidious", "systemRef": "SYS1" },
+    { "id": "CT3", "name": "Deployment Layer", "description": "Docker and requirements used to build and run the services.", "technology": "Docker / pip", "systemRef": "SYS1" }
+  ],
+  "components": [
+    {
+      "id": "C1",
+      "name": "Downloader",
+      "description": "yt-dlp wrapper for fetching media streams.",
+      "technology": "Python",
+      "containerRef": "CT1",
+      "moduleRef": "A2",
+      "filePath": "webbox/src/middleware/downloader.py"
+    },
+    {
+      "id": "C2",
+      "name": "Queue Manager",
+      "description": "Background job orchestration and progress tracking.",
+      "technology": "Python",
+      "containerRef": "CT1",
+      "moduleRef": "A1",
+      "filePath": "webbox/src/middleware/queue_manager.py"
+    },
+    {
+      "id": "C3",
+      "name": "Templates",
+      "description": "Watch, playlist, channel, and base UI templates.",
+      "technology": "Jinja2 / HTML",
+      "containerRef": "CT1",
+      "moduleRef": "A3",
+      "filePath": "webbox/src/middleware/templates/base.html"
+    }
+  ],
+  "relationships": [
+    { "id": "REL1", "source": "C2", "target": "C1", "description": "Queue manager triggers downloads.", "technology": "function call" },
+    { "id": "REL2", "source": "C1", "target": "SYS2", "description": "Downloader fetches media from YouTube.", "technology": "HTTP" },
+    { "id": "REL3", "source": "C2", "target": "C3", "description": "Jobs update the UI with status and progress.", "technology": "server-rendered template data" }
+  ]
+}
