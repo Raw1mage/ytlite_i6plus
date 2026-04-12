@@ -223,7 +223,7 @@ async def read_root(request: Request, response: Response):
     creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
     
-    response = templates.TemplateResponse("index.html", {"request": request, "logged_in": logged_in})
+    response = templates.TemplateResponse(request, "index.html", {"logged_in": logged_in})
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
@@ -233,13 +233,13 @@ async def read_root(request: Request, response: Response):
 async def privacy_page(request: Request):
     creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
-    return templates.TemplateResponse("privacy.html", {"request": request, "logged_in": logged_in})
+    return templates.TemplateResponse(request, "privacy.html", {"logged_in": logged_in})
 
 @app.get("/terms", response_class=HTMLResponse)
 async def terms_page(request: Request):
     creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
-    return templates.TemplateResponse("terms.html", {"request": request, "logged_in": logged_in})
+    return templates.TemplateResponse(request, "terms.html", {"logged_in": logged_in})
 
 @app.get("/login")
 async def login(request: Request):
@@ -661,7 +661,7 @@ async def search_page(request: Request, q: str):
             print(f"search error: {e}")
             videos = []
 
-    return templates.TemplateResponse("results.html", {"request": request, "query": q, "videos": videos, "logged_in": logged_in})
+    return templates.TemplateResponse(request, "results.html", {"query": q, "videos": videos, "logged_in": logged_in})
 
 
 @app.get("/channel")
@@ -674,7 +674,7 @@ async def channel_page(request: Request, c: str, name: str = ""):
     """
     creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
-    return templates.TemplateResponse("channel.html", {"request": request, "channel_id": c, "channel_name": name, "logged_in": logged_in})
+    return templates.TemplateResponse(request, "channel.html", {"channel_id": c, "channel_name": name, "logged_in": logged_in})
 
 @app.get("/channel/")
 async def channel_page_slash(request: Request, c: str = "", name: str = ""):
@@ -692,7 +692,7 @@ async def playlist_page(request: Request, list: str):
     """
     creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
-    return templates.TemplateResponse("playlist.html", {"request": request, "playlist_id": list, "logged_in": logged_in})
+    return templates.TemplateResponse(request, "playlist.html", {"playlist_id": list, "logged_in": logged_in})
 
 @app.get("/api/playlist/{playlistId}")
 async def get_playlist_details(playlistId: str):
@@ -978,8 +978,7 @@ async def manage_subscriptions(request: Request):
     if subs:
         items = subs # Already in correct format: {title, channelId, thumbnail}
         
-    return templates.TemplateResponse("manager.html", {
-        "request": request, 
+    return templates.TemplateResponse(request, "manager.html", {
         "logged_in": logged_in,
         "title": "訂閱管理",
         "view_type": "subscriptions",
@@ -1004,8 +1003,7 @@ async def manage_blocked(request: Request):
             "thumbnail": "" # No thumb stored for blocks
         })
         
-    return templates.TemplateResponse("manager.html", {
-        "request": request, 
+    return templates.TemplateResponse(request, "manager.html", {
         "logged_in": logged_in,
         "title": "封鎖管理",
         "view_type": "blocked",
@@ -1063,8 +1061,7 @@ async def manage_nav(request: Request):
     user_id = get_user_id(request, creds)
     items = get_user_nav(user_id)
     
-    return templates.TemplateResponse("nav_manager.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "nav_manager.html", {
         "logged_in": logged_in,
         "items": items
     })
@@ -1145,7 +1142,7 @@ async def download_file(job_id: str):
 async def downloads_page(request: Request):
     creds = get_creds(request)
     logged_in = (creds is not None and creds.valid)
-    return templates.TemplateResponse("downloads.html", {"request": request, "logged_in": logged_in})
+    return templates.TemplateResponse(request, "downloads.html", {"logged_in": logged_in})
 
 class OpenFolderRequest(pydantic.BaseModel):
     path: str = ""
