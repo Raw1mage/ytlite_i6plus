@@ -69,25 +69,10 @@ db:
 ## Accepted values: "http(s)://<IP-HOSTNAME>:<Port>"
 ## Default: <none>
 ##
-#invidious_companion:
-#  - private_url: "http://localhost:8282/companion"
-#  # Uncomment for advanced reverse proxy configuration (see above).
-#  # public_url: "http://localhost:8282/companion"
+invidious_companion:
+  - private_url: "http://invidious-companion:8080"
 
-##
-## API key for Invidious companion, used for securing the communication
-## between Invidious and Invidious companion.
-## The key needs to be exactly 16 characters long.
-##
-## Note: This parameter is mandatory when Invidious companion is enabled
-## and should be a random string.
-## Such random string can be generated on linux with the following
-## command: `pwgen 16 1`
-##
-## Accepted values: a string (of length 16)
-## Default: <none>
-##
-#invidious_companion_key: "CHANGE_ME!!"
+invidious_companion_key: "b92c6ea71fe89b25"
 
 #########################################
 #
