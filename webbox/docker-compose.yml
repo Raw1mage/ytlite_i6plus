@@ -23,7 +23,7 @@ services:
 
   # 2. Invidious Engine (The Bone)
   invidious:
-    image: quay.io/invidious/invidious:latest
+    image: quay.io/invidious/invidious:2026.04.09-606467c
     container_name: ytlite-engine
     restart: unless-stopped
     ports:
