@@ -110,7 +110,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const vid = urlParams.get('v');
         if (vid) {
-            const dummyVideo = { id: vid, title: 'Loading...', uploader: 'Loading...', thumbnail: '' };
+            const dummyVideo = { id: vid, title: '', uploader: '', thumbnail: '' };
             if (typeof openPlayer === 'function') openPlayer(dummyVideo);
         }
         loadVideos(true);

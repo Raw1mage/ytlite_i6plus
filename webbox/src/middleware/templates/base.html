@@ -1972,20 +1972,24 @@
             if (relatedContent) relatedContent.style.display = 'block';
             if (relatedToggle) relatedToggle.innerHTML = iconUp;
 
-            // Channel & Meta
+            // Channel & Meta — show card uploader immediately, API fetch will overwrite
             const metaFn = document.getElementById('player-meta');
-            const safeUploader = video.uploader.replace(/'/g, "\\'");
-            metaFn.innerHTML = `
-            <div style="display:flex; align-items:flex-end; flex-wrap: wrap; gap: 8px;">
-                <div style="flex:1; min-width: 200px;">
-                    <span onclick="loadChannel('${safeUploader}')" style="color: #3ea6ff; font-weight: bold; cursor: pointer;">${video.uploader}</span>
-                </div>
-                <div style="display:flex; gap:5px; align-items:center; justify-content:flex-end; flex-wrap:nowrap; margin-left:auto;">
-                    <button onclick="downloadThisVideo('${video.id}', '${video.title.replace(/'/g, "\\'")}')" style="padding:6px 12px; font-size:12px; background:#2ba640; color:#fff; border:none; border-radius:15px; white-space:nowrap;">⬇️ 下載</button>
-                    <button style="padding:6px 12px; font-size:12px; border-radius:15px; background:#cc0000; color:#fff; border:none;" onclick="toggleSubscription('', this)">訂閱</button>
-                </div>
-            </div>
-        `;
+            const initialUploader = video.uploader || '';
+            if (initialUploader) {
+                const safeUploader = initialUploader.replace(/'/g, "\\'");
+                metaFn.innerHTML = `
+                <div style="display:flex; align-items:flex-end; flex-wrap: wrap; gap: 8px;">
+                    <div style="flex:1; min-width: 200px;">
+                        <span onclick="loadChannel('${safeUploader}')" style="color: #3ea6ff; font-weight: bold; cursor: pointer;">${initialUploader}</span>
+                    </div>
+                    <div style="display:flex; gap:5px; align-items:center; justify-content:flex-end; flex-wrap:nowrap; margin-left:auto;">
+                        <button onclick="downloadThisVideo('${video.id}', '${video.title.replace(/'/g, "\\'")}', this)" style="padding:6px 12px; font-size:12px; background:#2ba640; color:#fff; border:none; border-radius:15px; white-space:nowrap;">⬇️ 下載</button>
+                        <button style="padding:6px 12px; font-size:12px; border-radius:15px; background:#cc0000; color:#fff; border:none;" onclick="toggleSubscription('', this)">訂閱</button>
+                    </div>
+                </div>`;
+            } else {
+                metaFn.innerHTML = `<span style="color:#555;">載入中...</span>`;
+            }
 
             // Video Playback (API or Iframe)
             const videoEl = document.getElementById('main-video');
@@ -2108,9 +2112,11 @@
                 if (data.info) {
                     if (data.info.title) document.getElementById('player-title').textContent = data.info.title;
                     if (data.info.description) document.getElementById('player-desc').textContent = data.info.description;
+                    // Use API-returned uploader, fall back to card value
+                    const resolvedUploader = data.info.uploader || video.uploader || 'Unknown';
                     const viewText = data.info.view_count ? ` • ${Math.floor(data.info.view_count / 10000)}萬觀看` : '';
                     const channelId = data.info.channel_id;
-                    const safeUploaderJs = video.uploader.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const safeUploaderJs = resolvedUploader.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
                     // Check subscription status
                     const isSubscribed = window.userSubscriptions.some(sub => sub.channelId === channelId);
@@ -2129,11 +2135,11 @@
 	                    metaFn.innerHTML = `
                     <div style="display:flex; align-items:flex-end; flex-wrap: wrap; gap: 8px;">
                         <div style="flex:1; min-width: 200px;">
-                            <div onclick="loadChannel('${safeUploaderJs}','${channelId}')" style="color: #3ea6ff; font-weight: bold; font-size: 15px; padding: 5px 0; cursor: pointer; display: inline-block;">${video.uploader}</div>
+                            <div onclick="loadChannel('${safeUploaderJs}','${channelId}')" style="color: #3ea6ff; font-weight: bold; font-size: 15px; padding: 5px 0; cursor: pointer; display: inline-block;">${resolvedUploader}</div>
                             <span style="color:#aaa; font-size:12px;">${viewText}</span>
                         </div>
                         <div style="display:flex; gap:5px; align-items:center; justify-content:flex-end; flex-wrap:nowrap; margin-left:auto;">
-                            <button onclick="downloadThisVideo('${video.id}', '${video.title.replace(/'/g, "\\'")}')" style="padding:6px 12px; font-size:12px; background:#2ba640; color:#fff; border:none; border-radius:15px; white-space:nowrap;">⬇️ 下載</button>
+                            <button onclick="downloadThisVideo('${video.id}', '${video.title.replace(/'/g, "\\'")}', this)" style="padding:6px 12px; font-size:12px; background:#2ba640; color:#fff; border:none; border-radius:15px; white-space:nowrap;">⬇️ 下載</button>
                             <button onclick="toggleSubscription('${channelId}', this)" style="padding:6px 12px; font-size:12px; background:${subBg}; color:${subColor}; border:none; border-radius:15px;">${subText}</button>
                         </div>
                     </div>
@@ -2220,7 +2226,40 @@
             } catch (e) { console.log('Metadata error', e); }
         }
 
-        async function downloadThisVideo(id, title) {
+        async function downloadThisVideo(id, title, btnEl) {
+            // Remove any existing picker
+            document.querySelectorAll('.dl-fmt-picker').forEach(el => el.remove());
+
+            // Build inline popover
+            const popup = document.createElement('div');
+            popup.className = 'dl-fmt-picker';
+            popup.style.cssText = 'position:absolute;z-index:9999;background:#222;border:1px solid #444;border-radius:10px;padding:8px;display:flex;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
+            popup.innerHTML = `
+                <button class="dl-pick-mp3" style="padding:8px 14px;font-size:13px;background:#333;border:1px solid #555;border-radius:6px;color:#fff;cursor:pointer;white-space:nowrap;">🎵 MP3</button>
+                <button class="dl-pick-mp4" style="padding:8px 14px;font-size:13px;background:#cc0000;border:none;border-radius:6px;color:#fff;cursor:pointer;font-weight:bold;white-space:nowrap;">🎬 MP4</button>`;
+
+            // Position next to the button
+            const anchor = btnEl || event.currentTarget;
+            const parent = anchor.closest('div[style*="display:flex"]') || anchor.parentElement;
+            parent.style.position = 'relative';
+            popup.style.bottom = '100%';
+            popup.style.right = '0';
+            popup.style.marginBottom = '6px';
+            parent.appendChild(popup);
+
+            const pick = (fmt) => {
+                popup.remove();
+                if (fmt) _doDownload(id, title, fmt);
+            };
+            popup.querySelector('.dl-pick-mp3').onclick = (e) => { e.stopPropagation(); pick('mp3'); };
+            popup.querySelector('.dl-pick-mp4').onclick = (e) => { e.stopPropagation(); pick('mp4'); };
+
+            // Close on outside click
+            const close = (e) => { if (!popup.contains(e.target) && e.target !== anchor) { popup.remove(); document.removeEventListener('click', close); } };
+            setTimeout(() => document.addEventListener('click', close), 0);
+        }
+
+        async function _doDownload(id, title, fmt) {
             showToast(`正在加入下載隊列: ${title}...`);
             try {
                 const res = await fetch('/api/download', {
@@ -2229,8 +2268,8 @@
                     body: JSON.stringify({
                         id: id,
                         title: title,
-                        format: 'mp4',
-                        type: 'video'
+                        format: fmt,
+                        type: fmt === 'mp3' ? 'audio' : 'video'
                     })
                 });
                 const data = await res.json();
