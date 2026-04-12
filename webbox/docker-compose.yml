@@ -21,20 +21,35 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. Invidious Engine (The Bone)
+  # 2a. Invidious Companion (required for video playback since 2025.09+)
+  invidious-companion:
+    image: quay.io/invidious/invidious-companion:latest
+    container_name: ytlite-companion
+    restart: unless-stopped
+    environment:
+      COMPANION_PORT: "8080"
+      INVIDIOUS_COMPANION_KEY: "b92c6ea71fe89b25"
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # 2b. Invidious Engine (The Bone)
   invidious:
     image: quay.io/invidious/invidious:2026.04.09-606467c
     container_name: ytlite-engine
     restart: unless-stopped
     ports:
-      - "1215:3000" # Changed from 3001 to 1215
+      - "1215:3000"
     volumes:
       - ./BUILD/invidious/config.yml:/invidious/config/config.yml
     environment:
-      # Connection to the DB service above
       INVIDIOUS_DATABASE_URL: postgres://kemal:password@invidious-db:5432/invidious
     depends_on:
       invidious-db:
+        condition: service_healthy
+      invidious-companion:
         condition: service_healthy
 
   # 3. YT Lite Middleware (The Brain & Skin)
