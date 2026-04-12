@@ -8,4 +8,4 @@ google-auth-oauthlib
 google-api-python-client
 sqlalchemy
 itsdangerous
-yt-dlp
+yt-dlp==2026.3.17
