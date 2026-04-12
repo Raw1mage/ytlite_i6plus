@@ -70,9 +70,9 @@ db:
 ## Default: <none>
 ##
 invidious_companion:
-  - private_url: "http://invidious-companion:8080"
+  - private_url: "http://invidious-companion:8282/companion"
 
-invidious_companion_key: "b92c6ea71fe89b25"
+invidious_companion_key: "CHANGE_ME!!"
 
 #########################################
 #
