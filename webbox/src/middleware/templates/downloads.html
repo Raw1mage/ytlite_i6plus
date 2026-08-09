@@ -308,11 +308,21 @@
             // Actions
             let actions = '';
             if (job.status === 'completed' || job.status === 'finished' || job.status === 'archived') {
-                // 'archived' shares these two buttons deliberately: the user must be able
-                // to save a history file and to clear its row. Saving is a USER action;
-                // the automatic path (readyJobs -> autoSaveJob) never sees it.
+                // 'archived' shares the save button deliberately: saving is a USER action,
+                // and the automatic path (readyJobs -> autoSaveJob) never sees it.
                 actions += `<button class="dl-action-btn" onclick="triggerFileDownload('${job.job_id}', '${job.title.replace(/'/g, "\\'")}.${job.format}')" style="background:#4caf50; margin-right:5px;">Save</button>`;
-                actions += `<button class="dl-action-btn delete" onclick="deleteJob('${job.job_id}')">Dismiss</button>`;
+                if (job.status === 'archived') {
+                    // Two separated actions, because one trash button cannot honestly mean
+                    // both "stop showing this" and "destroy the bytes". Note this template
+                    // previously had NO destructive path for a history file at all (both its
+                    // archived branch and its trailing else used deleteJob/purge=false), so
+                    // the delete button below introduces that risk here for the first time --
+                    // hence the confirmation inside purgeJobFile, not merely a red colour.
+                    actions += `<button class="dl-action-btn" onclick="hideArchivedJob('${job.job_id}')" title="只從清單移除，檔案保留" style="margin-right:5px;">隱藏</button>`;
+                    actions += `<button class="dl-action-btn delete" onclick="purgeJobFile('${job.job_id}', event)" title="從伺服器刪除檔案（不可復原）">刪除檔案</button>`;
+                } else {
+                    actions += `<button class="dl-action-btn delete" onclick="deleteJob('${job.job_id}')">Dismiss</button>`;
+                }
             } else if (['queued', 'downloading'].includes(job.status)) {
                 actions += `<button class="dl-action-btn delete" onclick="cancelJob('${job.job_id}', event)">Cancel</button>`;
             } else {
@@ -447,6 +457,32 @@
         // purge=false: this is a list operation.
         await fetch(`/api/downloads/${id}?purge=false`, { method: 'DELETE' });
         fetchDownloads();
+    }
+
+    async function hideArchivedJob(id) {
+        // Wrapper around deleteJob for ARCHIVED rows only. The toast states a property that
+        // holds ONLY for archived jobs: the row is rebuilt from disk on the next rescan, so
+        // it WILL come back. deleteJob is shared with the completed/finished rows (three
+        // call sites in this template), which do NOT come back -- putting this toast inside
+        // deleteJob would assert something false for them.
+        await deleteJob(id);
+        showToast('已隱藏，檔案保留在伺服器（重新啟動後會再出現）');
+    }
+
+    async function purgeJobFile(id, e) {
+        // The ONLY user-facing path in this template that destroys server bytes for an
+        // archived file. The fetch lives INSIDE the confirmation callback on purpose:
+        // that is what makes this call site unreachable except by one real click plus
+        // one real confirmation. No filter, poll or bulk action can arrive here -- the
+        // property the 2026-08-09 incident violated (73 files, ~4.3GB) when a purge=true
+        // consumer was fed jobs it should never have seen. Hoisting this fetch out of
+        // the callback would destroy that guarantee.
+        showConfirm('刪除檔案', '確定要從伺服器刪除這個檔案嗎？此動作不可復原。（若只想從清單移除，請改用「隱藏」）', async (yes) => {
+            if (!yes) return;
+            await fetch(`/api/downloads/${id}?purge=true`, { method: 'DELETE' });
+            showToast('已從伺服器刪除檔案');
+            fetchDownloads();
+        }, e);
     }
 
     // Determine poll rate based on visibility

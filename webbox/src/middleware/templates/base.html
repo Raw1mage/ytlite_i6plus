@@ -2853,12 +2853,20 @@
                 // Actions
                 let actions = '';
                 if (job.status === 'completed' || job.status == 'finished' || job.status === 'archived') {
-                    // 'archived' gets the same two buttons on purpose: the user must be
-                    // able to save a history file and to clear its row. What it must NOT
-                    // get is the Cancel button of the trailing else -- an archived job has
-                    // nothing in flight to cancel, and cancelJob sends purge=true.
+                    // 'archived' shares the save button but NOT the destructive one. What it
+                    // must never get is the Cancel button of the trailing else -- an archived
+                    // job has nothing in flight to cancel, and cancelJob sends purge=true.
                     actions += `<button class="btn-icon-text bg-green" onclick="triggerFileDownload('${job.job_id}', '${job.title.replace(/'/g, "\\'")}.${job.format}')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> 存檔</button>`;
-                    actions += `<button class="btn-icon" onclick="deleteJob('${job.job_id}')" title="Delete" style="color:#d9534f"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
+                    if (job.status === 'archived') {
+                        // A history file gets TWO clearly separated actions, because one
+                        // trash icon cannot honestly mean both. Hide is the safe default and
+                        // keeps its existing purge=false semantics; deleting the bytes is a
+                        // named action behind a confirmation (see purgeJobFile).
+                        actions += `<button class="btn-icon-text" onclick="hideArchivedJob('${job.job_id}')" title="只從清單移除，檔案保留"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg> 隱藏</button>`;
+                        actions += `<button class="btn-icon-text" onclick="purgeJobFile('${job.job_id}')" title="從伺服器刪除檔案（不可復原）" style="color:#d9534f"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> 刪除檔案</button>`;
+                    } else {
+                        actions += `<button class="btn-icon" onclick="deleteJob('${job.job_id}')" title="Delete" style="color:#d9534f"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
+                    }
                 } else if (job.status === 'error') {
                     actions += `<button class="btn-icon" onclick="deleteJob('${job.job_id}')" title="Dismiss" style="color:#d9534f"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
                 } else {
@@ -3004,6 +3012,34 @@
             // delete the file itself.
             await fetch(`/api/downloads/${id}?purge=false`, { method: 'DELETE' });
             fetchDownloads();
+        }
+
+        async function hideArchivedJob(id) {
+            // Wrapper around deleteJob for ARCHIVED rows only. The toast below states a
+            // property that is true ONLY of archived jobs: the row is rebuilt from disk on
+            // the next rescan, so it WILL come back. deleteJob itself is shared with the
+            // completed/finished rows (three call sites per template), and those do NOT
+            // come back -- putting this toast inside deleteJob would assert something false
+            // for them, which is the same defect class this whole change set is treating:
+            // two different facts sharing one observable output.
+            await deleteJob(id);
+            showToast('已隱藏，檔案保留在伺服器（重新啟動後會再出現）');
+        }
+
+        async function purgeJobFile(id) {
+            // The ONLY user-facing path that destroys server bytes for an archived file.
+            // The fetch lives INSIDE the confirmation callback on purpose: that is what
+            // makes this call site unreachable except by one real click followed by one
+            // real confirmation. No filter, poll or bulk action can arrive here, which is
+            // the property that the 2026-08-09 incident violated (73 files, ~4.3GB) when a
+            // purge=true consumer was fed jobs it should never have seen. If this fetch is
+            // ever hoisted out of the callback, that guarantee is gone.
+            showConfirm('刪除檔案', '確定要從伺服器刪除這個檔案嗎？此動作不可復原。（若只想從清單移除，請改用「隱藏」）', async (yes) => {
+                if (!yes) return;
+                await fetch(`/api/downloads/${id}?purge=true`, { method: 'DELETE' });
+                showToast('已從伺服器刪除檔案');
+                fetchDownloads();
+            });
         }
 
         async function cancelJob(id) {
