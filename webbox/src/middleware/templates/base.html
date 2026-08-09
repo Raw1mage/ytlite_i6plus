@@ -576,6 +576,12 @@
 
             /* Hide Downloads text if any (icon only already) */
         }
+
+        /* Selection mode: visible active state so the user knows which mode they are in */
+        .select-mode-btn.active {
+            background: #cc0000 !important;
+            border-radius: 50% !important;
+        }
     </style>
 </head>
 
@@ -609,6 +615,13 @@
 
         <div class="spacer"></div>
 
+        <!-- Selection Mode Toggle (touch devices have no ctrl/shift key) -->
+        <button class="icon-btn select-mode-btn" id="select-mode-btn" onclick="toggleSelectionMode()"
+            style="background:none; border:none; color:#fff; cursor:pointer; margin-right: 15px;"
+            title="選取模式"><svg viewBox="0 0 24 24" height="24" width="24" fill="currentColor">
+                <path
+                    d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-2.79-9.79L10.5 14.92l-2.71-2.71-1.41 1.41 4.12 4.12 7.12-7.12-1.41-1.41z" />
+            </svg></button>
         <!-- Downloads Button -->
         <button class="icon-btn" onclick="toggleDownloads()"
             style="background:none; border:none; color:#fff; cursor:pointer; margin-right: 15px;" title="Downloads"><svg
@@ -695,12 +708,15 @@
                 if (btn) btn.style.display = 'none';
             }
 
-            // Auto fetch subs, blocklist, and nav if logged in
-            // {% if logged_in %}
+            // Auto fetch subs, blocklist, and nav if logged in.
+            // This is a real Jinja conditional: it was previously written with a leading
+            // '//' which made it look like dead commented-out code, but Jinja strips the
+            // tags at render time regardless, so the guard was always live.
+            {% if logged_in %}
             fetchSubscriptions();
             fetchBlockedChannels();
             fetchNavItems();
-            // {% endif %}
+            {% endif %}
         });
 
         // --- Nav Customization Logic ---
@@ -1233,6 +1249,9 @@
         window.userSubscriptions = [];
         window.userBlocklist = {}; // {id: name}
         window.selectedVideos = new Set(); // {video_id}
+        // Touch devices have no ctrlKey/metaKey/shiftKey, so the modifier-based paths
+        // into selection are unreachable there. This explicit mode is the touch entry.
+        window.selectionMode = false;
         window.lastSelectedVid = null;
         window.videoDataCache = {}; // {id: {title, ...}} store info for downloads
 
@@ -1279,18 +1298,10 @@
             }
         }
 
-        function triggerFileDownload(jobId) {
-            if (!jobId) return;
-            const url = `/api/download_file/${jobId}`;
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            // a.download attribute is not strictly needed if backend sends Content-Disposition
-            // but we can add it if we want. Let's rely on backend.
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
+        // NOTE: triggerFileDownload is defined once, in the downloads-modal script block
+        // below (the async version taking an optional suggestedName). An earlier simple
+        // duplicate lived here and was silently overwritten by that later definition, so
+        // it never ran; removed to keep a single definition.
 
         function showToast(text) {
             const msg = document.createElement('div');
@@ -1336,7 +1347,10 @@
                 // Keyboard Modifiers
                 const isMulti = e.ctrlKey || e.metaKey;
                 const isRange = e.shiftKey;
-                const isSelectionActive = window.selectedVideos.size > 0;
+                // window.selectionMode is the touch entry point: without it, the only
+                // ways in are ctrl/meta/shift (never true on touch) or a non-empty
+                // selection, which itself can only be reached through those keys.
+                const isSelectionActive = window.selectionMode || window.selectedVideos.size > 0;
 
                 if (isRange) {
                     e.preventDefault();
@@ -1440,19 +1454,49 @@
 
         function clearSelection() {
             window.selectedVideos.clear();
+            // Cancel also leaves selection mode, otherwise the user is stuck in a mode
+            // where every tap selects instead of playing.
+            window.selectionMode = false;
             document.querySelectorAll('.video-card.selected').forEach(el => el.classList.remove('selected'));
             updateSelectionUI();
+        }
+
+        function toggleSelectionMode() {
+            window.selectionMode = !window.selectionMode;
+            if (!window.selectionMode) {
+                window.selectedVideos.clear();
+                document.querySelectorAll('.video-card.selected').forEach(function (el) {
+                    el.classList.remove('selected');
+                });
+            }
+            updateSelectionUI();
+            if (typeof showToast === 'function') {
+                showToast(window.selectionMode ? '選取模式：點擊影片以勾選' : '已離開選取模式');
+            }
         }
 
         function updateSelectionUI() {
             const bar = document.getElementById('selection-bar');
             const count = document.getElementById('selection-count');
-            count.innerText = window.selectedVideos.size;
+            if (count) count.innerText = window.selectedVideos.size;
 
-            if (window.selectedVideos.size > 0) {
-                bar.style.bottom = '0px';
-            } else {
-                bar.style.bottom = '-80px';
+            const modeBtn = document.getElementById('select-mode-btn');
+            if (modeBtn) {
+                if (window.selectionMode) {
+                    modeBtn.classList.add('active');
+                } else {
+                    modeBtn.classList.remove('active');
+                }
+            }
+
+            // Bar must also be reachable in selection mode with nothing selected yet,
+            // otherwise there is no visible way back out.
+            if (bar) {
+                if (window.selectionMode || window.selectedVideos.size > 0) {
+                    bar.style.bottom = '0px';
+                } else {
+                    bar.style.bottom = '-80px';
+                }
             }
         }
 
