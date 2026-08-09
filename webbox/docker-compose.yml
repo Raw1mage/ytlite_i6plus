@@ -27,7 +27,11 @@ services:
     container_name: ytlite-companion
     restart: unless-stopped
     environment:
-      SERVER_SECRET_KEY: "CHANGE_ME!!"
+      # Shared with the engine below; both read the SAME value from .env so the
+      # two can never drift apart. Changing one side only breaks engine<->companion
+      # auth, and the symptom does not point at the secret (it surfaces as failed
+      # API calls). See webbox/.env.example.
+      SERVER_SECRET_KEY: "${SERVER_SECRET_KEY:?SERVER_SECRET_KEY is required - copy .env.example to .env}"
 
   # 2b. Invidious Engine (The Bone)
   invidious:
@@ -40,6 +44,11 @@ services:
       - ./BUILD/invidious/config.yml:/invidious/config/config.yml
     environment:
       INVIDIOUS_DATABASE_URL: postgres://kemal:password@invidious-db:5432/invidious
+      # Overrides invidious_companion_key from the mounted config.yml. Invidious
+      # applies INVIDIOUS_<UPPERCASED_TOP_LEVEL_KEY> env vars BEFORE its empty /
+      # CHANGE_ME / length checks (config.cr:208-268), so the file can ship with a
+      # placeholder while the real value stays out of version control.
+      INVIDIOUS_INVIDIOUS_COMPANION_KEY: "${SERVER_SECRET_KEY:?SERVER_SECRET_KEY is required - copy .env.example to .env}"
     depends_on:
       invidious-db:
         condition: service_healthy

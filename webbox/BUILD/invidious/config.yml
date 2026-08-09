@@ -72,6 +72,11 @@ db:
 invidious_companion:
   - private_url: "http://invidious-companion:8282/companion"
 
+# Placeholder only. The real value is injected by docker-compose as
+# INVIDIOUS_INVIDIOUS_COMPANION_KEY from webbox/.env, which Invidious applies
+# BEFORE its empty / CHANGE_ME / 16-char checks (config.cr:208-268). Running
+# this file without that env var set will fail loudly at startup rather than
+# silently authenticating with a committed secret.
 invidious_companion_key: "CHANGE_ME!!"
 
 #########################################
