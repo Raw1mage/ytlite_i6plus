@@ -29,11 +29,34 @@ class Downloader:
         if fmt == 'mp3':
             ydl_opts.update({
                 'format': 'bestaudio/best',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
+                # Fetch the thumbnail so EmbedThumbnail has something to embed. Without
+                # this the embed postprocessor has no input and silently does nothing --
+                # and with quiet/no_warnings on, the download still reports success.
+                'writethumbnail': True,
+                'postprocessors': [
+                    {
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '192',
+                    },
+                    # ORDER IS LOAD-BEARING: extract audio -> write tags -> embed cover.
+                    # FFmpegMetadata maps yt-dlp fields onto ID3 tags. Its artist rule is
+                    # ('artist', 'artists', 'creator', 'creators', 'uploader', 'uploader_id')
+                    # (yt_dlp/postprocessor/ffmpeg.py:751), so an ordinary YouTube video --
+                    # which carries no 'artist' at all -- still gets the channel name via
+                    # the 'uploader' fallback. That is why no parse_metadata rule is needed.
+                    {
+                        'key': 'FFmpegMetadata',
+                        'add_metadata': True,
+                    },
+                    # For mp3 this runs ffmpeg directly (embedthumbnail.py:90-96), unlike
+                    # the ogg/opus/flac branch which hard-requires mutagen. mutagen is NOT
+                    # installed here and is NOT needed for this path.
+                    {
+                        'key': 'EmbedThumbnail',
+                        'already_have_thumbnail': False,
+                    },
+                ],
             })
         else: # mp4
             ydl_opts.update({
