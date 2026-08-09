@@ -290,6 +290,12 @@
             } else if (job.status === 'completed' || job.status === 'finished') {
                 statusText = 'READY';
                 statusClass = 'status-finished';
+            } else if (job.status === 'archived') {
+                // Found on disk at startup. Visible on purpose, but deliberately NOT
+                // matched by readyJobs above: no automatic pipeline may touch it.
+                statusText = '已存檔';
+                statusClass = 'status-finished';
+                progress = 100;
             } else if (job.status === 'error') {
                 // Determine if it's 403
                 if (job.error && job.error.includes('403')) {
@@ -301,7 +307,10 @@
 
             // Actions
             let actions = '';
-            if (job.status === 'completed' || job.status === 'finished') {
+            if (job.status === 'completed' || job.status === 'finished' || job.status === 'archived') {
+                // 'archived' shares these two buttons deliberately: the user must be able
+                // to save a history file and to clear its row. Saving is a USER action;
+                // the automatic path (readyJobs -> autoSaveJob) never sees it.
                 actions += `<button class="dl-action-btn" onclick="triggerFileDownload('${job.job_id}', '${job.title.replace(/'/g, "\\'")}.${job.format}')" style="background:#4caf50; margin-right:5px;">Save</button>`;
                 actions += `<button class="dl-action-btn delete" onclick="deleteJob('${job.job_id}')">Dismiss</button>`;
             } else if (['queued', 'downloading'].includes(job.status)) {

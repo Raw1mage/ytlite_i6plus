@@ -2832,6 +2832,13 @@
                     statusText = 'READY';
                     statusColor = '#4caf50';
                     progress = 100;
+                } else if (job.status === 'archived') {
+                    // A file found on disk at startup. Rendered so history is visible,
+                    // but deliberately NOT matched by readyJobs above: no automatic
+                    // pipeline may touch it. Saving it is a user action only.
+                    statusText = '已存檔';
+                    statusColor = '#5bc0de';
+                    progress = 100;
                 } else if (job.status === 'error') {
                     statusText = 'ERROR';
                     statusColor = '#d9534f';
@@ -2845,7 +2852,11 @@
 
                 // Actions
                 let actions = '';
-                if (job.status === 'completed' || job.status == 'finished') {
+                if (job.status === 'completed' || job.status == 'finished' || job.status === 'archived') {
+                    // 'archived' gets the same two buttons on purpose: the user must be
+                    // able to save a history file and to clear its row. What it must NOT
+                    // get is the Cancel button of the trailing else -- an archived job has
+                    // nothing in flight to cancel, and cancelJob sends purge=true.
                     actions += `<button class="btn-icon-text bg-green" onclick="triggerFileDownload('${job.job_id}', '${job.title.replace(/'/g, "\\'")}.${job.format}')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> 存檔</button>`;
                     actions += `<button class="btn-icon" onclick="deleteJob('${job.job_id}')" title="Delete" style="color:#d9534f"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>`;
                 } else if (job.status === 'error') {

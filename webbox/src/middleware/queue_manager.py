@@ -6,6 +6,23 @@ import os
 import shutil
 from downloader import Downloader
 
+# Media extensions yt-dlp may produce. Anything else on disk is ignored.
+MEDIA_EXTS = ('.mp3', '.mp4', '.m4a', '.webm', '.mkv', '.opus', '.aac', '.flac')
+# Partial / sidecar artifacts that must never be shown as finished downloads.
+PARTIAL_SUFFIXES = ('.part', '.ytdl', '.tmp', '.temp')
+# Stable namespace so a rescan of the same file always yields the same job_id.
+_DISK_JOB_NS = uuid.UUID('6f0d2a1e-6b1a-4c3f-9b2d-0e5a7c4d8f11')
+# Status for jobs reconstructed from disk. Deliberately NOT 'completed'.
+#
+# On 2026-08-09 an earlier version of this scan used 'completed'. The frontend
+# auto-save loop consumes exactly that status, fetched all 73 reconstructed jobs
+# and then issued DELETE, destroying ~4.3GB. A history file is not a download
+# this session just finished, and it must not be fed to a pipeline whose job is
+# to move fresh downloads to the client and free the server copy. 'archived'
+# keeps them out of every automatic consumer while still being renderable.
+ARCHIVED_STATUS = 'archived'
+
+
 class QueueManager:
     def __init__(self, download_dir, cache_dir):
         self.downloader = Downloader(download_dir)
@@ -22,9 +39,113 @@ class QueueManager:
         self.queue = asyncio.Queue()
         self.active_workers = 0
         self.max_workers = 1 # Limit to 1 concurrent download for low spec
-        
+
+        # Disk is the source of truth: self.jobs is in-memory only and is lost on
+        # every restart, so rebuild it from download_dir. Without this, previously
+        # downloaded files exist on disk but are invisible in the UI forever.
+        self.rescan_download_dir()
+
         # Start worker
         asyncio.create_task(self._worker())
+
+    def rescan_download_dir(self):
+        """Rebuild jobs for files already present in download_dir, as ARCHIVED.
+
+        Returns the number of jobs added. Single scandir pass, O(n).
+
+        The status is ARCHIVED_STATUS, never 'completed'. See that constant for
+        why: 'completed' is the trigger the auto-save pipeline consumes, and
+        feeding it history files deleted 4.3GB once already.
+
+        NOTE on the MISSING branch below: it is UNREACHABLE from __init__, which
+        calls os.makedirs(download_dir) before calling us, so by the time we run
+        the directory always exists (measured, not assumed: via __init__ a
+        nonexistent dir logs the ordinary "0 jobs restored" line; only a direct
+        call logs MISSING). It is kept for direct callers -- a future
+        rescan-on-demand endpoint, or a test -- because without it os.scandir
+        would raise and a missing directory would be indistinguishable from an
+        empty one. Do not cite it as a guard on the production path: there, a
+        vanished download_dir is silently re-created empty by __init__.
+        """
+        d = self.download_dir
+        if not os.path.isdir(d):
+            print("[Queue] rescan: download_dir MISSING: %s (0 jobs restored)" % d, flush=True)
+            return 0
+
+        added = 0
+        skipped = 0
+        try:
+            entries = list(os.scandir(d))
+        except OSError as e:
+            print("[Queue] rescan: cannot read %s: %s" % (d, e), flush=True)
+            return 0
+
+        for entry in entries:
+            try:
+                name = entry.name
+                if name.startswith('.'):
+                    skipped += 1
+                    continue
+                if not entry.is_file():
+                    skipped += 1
+                    continue
+                lower = name.lower()
+                if lower.endswith(PARTIAL_SUFFIXES):
+                    skipped += 1
+                    continue
+                stem, ext = os.path.splitext(name)
+                if ext.lower() not in MEDIA_EXTS:
+                    skipped += 1
+                    continue
+                if not stem:
+                    skipped += 1
+                    continue
+
+                path = entry.path
+                try:
+                    st = entry.stat()
+                    created_at = st.st_mtime
+                    size = st.st_size
+                except OSError:
+                    # Corrupted / vanished entry: still list it, but with no stat data.
+                    created_at = time.time()
+                    size = 0
+
+                # Filenames are written as "<video_id>.<ext>"; a file that does not
+                # follow that convention still gets listed, with the stem as its id.
+                video_id = stem
+                fmt = 'mp3' if ext.lower() == '.mp3' else 'mp4'
+                job_id = str(uuid.uuid5(_DISK_JOB_NS, path))
+
+                if job_id in self.jobs:
+                    continue
+
+                self.jobs[job_id] = {
+                    'job_id': job_id,
+                    'video_id': video_id,
+                    'title': stem,
+                    'format': fmt,
+                    'type': 'video',
+                    'status': ARCHIVED_STATUS,
+                    'progress': 100,
+                    'speed': '',
+                    'eta': '',
+                    'created_at': created_at,
+                    'filename': path,
+                    'file_path': path,
+                    'error': None,
+                    'is_cache': False,
+                    'from_disk': True,
+                    'size': size,
+                }
+                added += 1
+            except Exception as e:
+                skipped += 1
+                print("[Queue] rescan: skipping %r: %s" % (getattr(entry, 'name', '?'), e), flush=True)
+
+        print("[Queue] rescan: %s -> %d archived job(s) restored, %d entr(ies) skipped"
+              % (d, added, skipped), flush=True)
+        return added
 
     def add_job(self, video_id, title, fmt, dtype='video', is_cache=False):
         # 1. Deduplication: Check if an active job already exists for this video
