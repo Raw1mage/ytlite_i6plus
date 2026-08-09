@@ -1,0 +1,16 @@
+# specbase 本地資料庫（event log / ragbase）— 每台機器自己的，不進版控
+# 與 ~/projects/opencode、~/projects/specbase 的慣例一致
+.specbase/
+
+# agent 一次性驗證腳本 / scratch
+.agent/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 執行期產物
+logs/
+*.log
