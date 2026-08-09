@@ -6,6 +6,14 @@ import os
 import shutil
 from downloader import Downloader
 
+# Media extensions yt-dlp may produce. Anything else on disk is ignored.
+MEDIA_EXTS = ('.mp3', '.mp4', '.m4a', '.webm', '.mkv', '.opus', '.aac', '.flac')
+# Partial / sidecar artifacts that must never be shown as completed downloads.
+PARTIAL_SUFFIXES = ('.part', '.ytdl', '.tmp', '.temp')
+# Stable namespace so a rescan of the same file always yields the same job_id.
+_DISK_JOB_NS = uuid.UUID('6f0d2a1e-6b1a-4c3f-9b2d-0e5a7c4d8f11')
+
+
 class QueueManager:
     def __init__(self, download_dir, cache_dir):
         self.downloader = Downloader(download_dir)
@@ -22,9 +30,111 @@ class QueueManager:
         self.queue = asyncio.Queue()
         self.active_workers = 0
         self.max_workers = 1 # Limit to 1 concurrent download for low spec
-        
+
+        # Disk is the source of truth: self.jobs is in-memory only and is lost on
+        # every restart, so rebuild it from download_dir. Without this, previously
+        # downloaded files exist on disk but are invisible in the UI forever.
+        self.rescan_download_dir()
+
         # Start worker
         asyncio.create_task(self._worker())
+
+    def rescan_download_dir(self):
+        """Rebuild completed jobs from files already present in download_dir.
+
+        Returns the number of jobs added.
+          - directory present, empty -> logs 0 files, returns 0
+          - directory has files      -> one job per recognised media file
+          - directory missing        -> logs MISSING, returns 0 (see note below)
+        Single scandir pass, O(n).
+
+        NOTE on the MISSING branch: it is UNREACHABLE from __init__, which calls
+        os.makedirs(download_dir) before calling us, so by the time we run the
+        directory always exists (measured, not assumed). It is kept only for direct
+        callers -- a future rescan-on-demand endpoint, or a test -- because without it
+        os.scandir would raise and a missing directory would otherwise be indistinguish-
+        able from an empty one. Do not cite it as a guard on the production path: on
+        that path a vanished download_dir is silently re-created empty by __init__.
+        """
+        d = self.download_dir
+        if not os.path.isdir(d):
+            print("[Queue] rescan: download_dir MISSING: %s (0 jobs restored)" % d, flush=True)
+            return 0
+
+        added = 0
+        skipped = 0
+        try:
+            entries = list(os.scandir(d))
+        except OSError as e:
+            print("[Queue] rescan: cannot read %s: %s" % (d, e), flush=True)
+            return 0
+
+        for entry in entries:
+            try:
+                name = entry.name
+                if name.startswith('.'):
+                    skipped += 1
+                    continue
+                if not entry.is_file():
+                    skipped += 1
+                    continue
+                lower = name.lower()
+                if lower.endswith(PARTIAL_SUFFIXES):
+                    skipped += 1
+                    continue
+                stem, ext = os.path.splitext(name)
+                if ext.lower() not in MEDIA_EXTS:
+                    skipped += 1
+                    continue
+                if not stem:
+                    skipped += 1
+                    continue
+
+                path = entry.path
+                try:
+                    st = entry.stat()
+                    created_at = st.st_mtime
+                    size = st.st_size
+                except OSError:
+                    # Corrupted / vanished entry: still list it, but with no stat data.
+                    created_at = time.time()
+                    size = 0
+
+                # Filenames are written as "<video_id>.<ext>"; a file that does not
+                # follow that convention still gets listed, with the stem as its id.
+                video_id = stem
+                fmt = 'mp3' if ext.lower() == '.mp3' else 'mp4'
+                job_id = str(uuid.uuid5(_DISK_JOB_NS, path))
+
+                if job_id in self.jobs:
+                    continue
+
+                self.jobs[job_id] = {
+                    'job_id': job_id,
+                    'video_id': video_id,
+                    'title': stem,
+                    'format': fmt,
+                    'type': 'video',
+                    'status': 'completed',
+                    'progress': 100,
+                    'speed': '',
+                    'eta': '',
+                    'created_at': created_at,
+                    'filename': path,
+                    'file_path': path,
+                    'error': None,
+                    'is_cache': False,
+                    'from_disk': True,
+                    'size': size,
+                }
+                added += 1
+            except Exception as e:
+                skipped += 1
+                print("[Queue] rescan: skipping %r: %s" % (getattr(entry, 'name', '?'), e), flush=True)
+
+        print("[Queue] rescan: %s -> %d job(s) restored, %d entr(ies) skipped"
+              % (d, added, skipped), flush=True)
+        return added
 
     def add_job(self, video_id, title, fmt, dtype='video', is_cache=False):
         # 1. Deduplication: Check if an active job already exists for this video
