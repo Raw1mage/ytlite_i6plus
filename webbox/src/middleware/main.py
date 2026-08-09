@@ -1188,10 +1188,24 @@ async def get_download_status(job_id: str):
     return job
 
 @app.delete("/api/downloads/{job_id}")
-async def cancel_download(job_id: str):
+async def cancel_download(job_id: str, purge: bool = False):
+    """Remove a job from the list. Delete the file from disk only if purge=true.
+
+    purge defaults to FALSE: tidying the list must never be able to destroy data.
+    A caller that genuinely wants the bytes gone has to say so. The response
+    reports what actually happened instead of always claiming "deleted", so a
+    duplicate request is distinguishable from a real one.
+    """
     queue_manager.cancel_job(job_id)
-    queue_manager.clear_job(job_id)
-    return {"status": "deleted"}
+    result = queue_manager.clear_job(job_id, purge=purge)
+    if not result['removed']:
+        return {"status": "not_found", "removed": False, "purged": False}
+    return {
+        "status": "purged" if result['purged'] else "removed_from_list",
+        "removed": True,
+        "purged": result['purged'],
+        "purge_error": result['error'],
+    }
 
 @app.get("/api/download_file/{job_id}")
 async def download_file(job_id: str):

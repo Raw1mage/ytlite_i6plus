@@ -2791,8 +2791,10 @@
                 // DELETE removes the file from disk, not just from the list, so it must
                 // require positive evidence of a local copy -- never the absence of an error.
                 if (result === 'confirmed') {
-                    // Automatically delete from server after successful local save
-                    await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
+                    // purge=true: a verified local copy exists, so freeing the server
+                    // copy is the whole point of auto-save. This is the ONLY automatic
+                    // path allowed to destroy bytes, and it is gated on 'confirmed'.
+                    await fetch(`/api/downloads/${job.job_id}?purge=true`, { method: 'DELETE' });
                     fetchDownloads(); // Refresh list to remove it
                 } else {
                     showToast(`⬇️ 已傳送，伺服器副本保留（未能確認本機存檔）`);
@@ -2957,8 +2959,8 @@
                     // 'confirmed' is only ever returned by the path that verified the write,
                     // so it already implies useSilent; an unverified path keeps the copy.
                     if (result === 'confirmed') {
-                        // Delete from server after manual "Save All" trigger too
-                        await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
+                        // purge=true for the same reason as autoSaveJob: verified local copy.
+                        await fetch(`/api/downloads/${job.job_id}?purge=true`, { method: 'DELETE' });
                     }
                     if (!useSilent) await new Promise(r => setTimeout(r, 1500));
                 } catch (e) { console.error(e); }
@@ -2970,11 +2972,12 @@
             const jobs = dlJobs.filter(j => j.status === 'completed' || j.status === 'finished' || j.status === 'error');
             if (jobs.length === 0) return;
 
-            showConfirm('清除', '確定要清除所有已完成的任務嗎？(檔案將被刪除)', async (yes) => {
+            showConfirm('清除', '確定要清除所有已完成的任務嗎？（只清列表，檔案保留）', async (yes) => {
                 if (yes) {
                     showToast('正在清除任務...');
                     try {
-                        await Promise.all(jobs.map(job => fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' })));
+                        // purge=false: clearing the list must never destroy downloads.
+                        await Promise.all(jobs.map(job => fetch(`/api/downloads/${job.job_id}?purge=false`, { method: 'DELETE' })));
                         fetchDownloads();
                         showToast('清除完成');
                     } catch (e) {
@@ -2986,14 +2989,18 @@
         }
 
         async function deleteJob(id) {
-            await fetch(`/api/downloads/${id}`, { method: 'DELETE' });
+            // purge=false: this is a list operation. Use the explicit purge action to
+            // delete the file itself.
+            await fetch(`/api/downloads/${id}?purge=false`, { method: 'DELETE' });
             fetchDownloads();
         }
 
         async function cancelJob(id) {
-            showConfirm('取消', '確定要取消此任務嗎？', async (yes) => {
+            showConfirm('取消', '確定要取消此任務嗎？（已下載的部分檔案會被刪除）', async (yes) => {
                 if (yes) {
-                    await fetch(`/api/downloads/${id}`, { method: 'DELETE' });
+                    // purge=true: an in-flight job leaves a partial file that is useless
+                    // on its own, so cancelling it should take the fragment with it.
+                    await fetch(`/api/downloads/${id}?purge=true`, { method: 'DELETE' });
                     fetchDownloads();
                 }
             });

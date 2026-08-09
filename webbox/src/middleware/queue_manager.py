@@ -130,29 +130,37 @@ class QueueManager:
         if job_id in self.jobs:
             self.jobs[job_id]['status'] = 'cancelled'
 
-    def clear_job(self, job_id):
-        if job_id in self.jobs:
-            # Only delete file if it's NOT in cache?
-            # Or if user explicitly deletes a download job?
-            # If is_cache=True, we might want to keep it until LRU eviction.
-            # But "clear_job" usually comes from UI delete button.
-            # If user deletes a "play" task from UI (if visible), should we delete file?
-            # For now, let's strictly follow: clear_job = delete file check.
-            
-            job = self.jobs[job_id]
-            fpath = job.get('file_path') or job.get('filename')
-            
-            # If it is a cache file, maybe we don't delete immediately? 
-            # But the UI will hide cache jobs anyway.
-            # If it is a download job, we delete it.
-            
-            if fpath and os.path.exists(fpath):
-                try: 
-                    os.remove(fpath)
-                except Exception as e:
-                    print(f"Error deleting file {fpath}: {e}")
-            
-            del self.jobs[job_id]
+    def clear_job(self, job_id, purge=False):
+        """Remove a job from the list. Delete the file from disk ONLY if purge=True.
+
+        The two used to be one action, so a caller that merely wanted to tidy the
+        list destroyed the download as a side effect. Removing a job from an
+        in-memory dict is cheap and reversible; os.remove is neither. They are now
+        separate decisions and the caller has to ask for the destructive one.
+
+        Returns a dict rather than None so "there was no such job" and "the job was
+        removed" stop sharing one output -- previously both were silent and the
+        endpoint answered 200 {"status": "deleted"} either way, which made a
+        duplicate delete indistinguishable from a real one in the log.
+        """
+        if job_id not in self.jobs:
+            return {'removed': False, 'purged': False, 'file': None, 'error': None}
+
+        job = self.jobs[job_id]
+        fpath = job.get('file_path') or job.get('filename')
+        purged = False
+        error = None
+
+        if purge and fpath and os.path.exists(fpath):
+            try:
+                os.remove(fpath)
+                purged = True
+            except Exception as e:
+                error = str(e)
+                print(f"Error deleting file {fpath}: {e}", flush=True)
+
+        del self.jobs[job_id]
+        return {'removed': True, 'purged': purged, 'file': fpath, 'error': error}
 
     async def _worker(self):
         while True:
