@@ -6,6 +6,11 @@
 <div id="video-grid" class="video-grid">
     <!-- Videos injected via JS -->
 </div>
+<div id="feed-error" style="display: none; margin: 10px; padding: 14px; background: #3a1e1e; border: 1px solid #7a3535; border-radius: 6px; color: #ffb3b3; font-size: 14px; line-height: 1.6;">
+</div>
+<div id="feed-empty" style="display: none; text-align: center; padding: 30px; color: #888; font-size: 14px;">
+    目前沒有影片。
+</div>
 <div id="loading" style="text-align: center; padding: 30px; color: #666; display: none;">
     Loading more videos...
 </div>
@@ -20,6 +25,32 @@
     let currentCategory = 'all';
     let isFinished = false;
 
+    // Upstream failure and 'genuinely no videos' must render DIFFERENTLY.
+    function showFeedError(msg) {
+        const box = document.getElementById('feed-error');
+        const empty = document.getElementById('feed-empty');
+        if (empty) empty.style.display = 'none';
+        if (!box) return;
+        box.innerHTML = '<strong style="color:#ff6b6b;">無法載入影片</strong><br>'
+            + msg
+            + '<br><span style="color:#c99; font-size:12px;">這不是「沒有影片」——上游服務目前無法回應，請稍後再試。</span>';
+        box.style.display = 'block';
+    }
+
+    function showFeedEmpty() {
+        const box = document.getElementById('feed-error');
+        const empty = document.getElementById('feed-empty');
+        if (box) box.style.display = 'none';
+        if (empty) empty.style.display = 'block';
+    }
+
+    function clearFeedNotices() {
+        const box = document.getElementById('feed-error');
+        const empty = document.getElementById('feed-empty');
+        if (box) box.style.display = 'none';
+        if (empty) empty.style.display = 'none';
+    }
+
     async function loadVideos(reset = false) {
         if (isLoading || (isFinished && !reset)) return;
         isLoading = true;
@@ -28,6 +59,7 @@
 
         if (reset) {
             document.getElementById('video-grid').innerHTML = '';
+            clearFeedNotices();
             nextPageToken = '';
             isFinished = false;
         }
@@ -48,7 +80,14 @@
                     return;
                 }
                 data = await response.json();
-                console.log('[loadVideos] category:', currentCategory, 'items:', (data && data.videos ? data.videos.length : 0), 'next:', (data ? data.nextPageToken : ''));
+                console.log('[loadVideos] category:', currentCategory, 'items:', (data && data.videos ? data.videos.length : 0), 'next:', (data ? data.nextPageToken : ''), 'error:', (data ? data.error : ''));
+            }
+
+            // Upstream failure must NOT look like 'no more videos'.
+            if (data && data.error) {
+                isFinished = true;
+                showFeedError(data.error);
+                return;
             }
 
             if (data.videos && data.videos.length > 0) {
@@ -72,9 +111,14 @@
                 if (!nextPageToken) isFinished = true;
             } else {
                 isFinished = true;
+                if (document.getElementById('video-grid').children.length === 0) {
+                    showFeedEmpty();
+                }
             }
         } catch (e) {
             console.error("Load error:", e);
+            isFinished = true;
+            showFeedError('無法連線到伺服器（' + e + '）');
         } finally {
             isLoading = false;
             document.getElementById('loading').style.display = 'none';

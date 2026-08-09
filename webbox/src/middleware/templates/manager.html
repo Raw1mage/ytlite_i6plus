@@ -4,6 +4,14 @@
 <div style="padding: 20px; max-width: 800px; margin: 0 auto;">
     <h2 style="margin-bottom: 20px; color: #fff;">{{ title }}</h2>
 
+    {% if error %}
+    <div style="margin-bottom: 20px; padding: 14px; background: #3a1e1e; border: 1px solid #7a3535; border-radius: 6px; color: #ffb3b3; font-size: 14px; line-height: 1.6;">
+        <strong style="color:#ff6b6b;">無法取得{{ title }}</strong><br>
+        {{ error }}<br>
+        <span style="color:#c99; font-size:12px;">這不是「目前沒有{{ title }}」——上游服務暫時無法回應。</span>
+    </div>
+    {% endif %}
+
     {% if items %}
     <div style="display: flex; flex-direction: column; gap: 10px;">
         {% for item in items %}

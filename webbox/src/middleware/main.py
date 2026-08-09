@@ -15,8 +15,19 @@ from urllib.parse import urlencode
 from urllib.parse import urlparse, parse_qs
 
 import uuid
+import re
 
 from queue_manager import QueueManager
+
+
+class SubscriptionsUnavailable(Exception):
+    """Raised when the Google API subscriptions call FAILED.
+
+    Deliberately distinct from an empty list: 'the call failed' and
+    'this user has no subscriptions' must never share one output.
+    """
+    pass
+
 
 app = FastAPI()
 
@@ -321,6 +332,36 @@ async def logout(request: Request):
 
 from googleapiclient.discovery import build
 
+def scrub_secrets(text):
+    """Strip anything token-shaped before it reaches a log line."""
+    s = str(text)
+    s = re.sub(r'((?:access_token|refresh_token|id_token|client_secret|key|token|code)=)[^&\s"\']+',
+               r'\1<redacted>', s, flags=re.IGNORECASE)
+    s = re.sub(r'\b(ya29|1//|AIza)[A-Za-z0-9_\-\.]+', '<redacted>', s)
+    return s[:300]
+
+
+def classify_upstream(resp, expect_list=True):
+    """Return (data, error_message). error_message is None ONLY on a genuine success.
+
+    An upstream failure and a genuinely-empty result MUST NOT share one output:
+    success -> (list, None)            e.g. ([], None) means 'really no results'
+    failure -> (None, '<why>')         never an empty list
+    """
+    if resp.status_code != 200:
+        return None, f"上游服務回應 HTTP {resp.status_code}"
+    try:
+        data = resp.json()
+    except Exception as e:
+        return None, f"上游回應無法解析（{type(e).__name__}）"
+    if expect_list and not isinstance(data, list):
+        detail = ""
+        if isinstance(data, dict) and data.get("error"):
+            detail = f"：{scrub_secrets(data.get('error'))[:120]}"
+        return None, f"上游服務回報錯誤{detail}"
+    return data, None
+
+
 def fetch_subscriptions_internal(credentials, max_results=500):
     """Fetch user subscriptions from YouTube API."""
     try:
@@ -348,10 +389,12 @@ def fetch_subscriptions_internal(credentials, max_results=500):
             if not next_page_token:
                 break
                 
+        print(f"[subscriptions] source=google-api status=ok fetched={len(items)}")
         return items
     except Exception as e:
-        print(f"Error fetching subscriptions: {e}")
-        return []
+        print(f"[subscriptions] source=google-api status=UPSTREAM_FAIL "
+              f"error_type={type(e).__name__} detail={scrub_secrets(e)}")
+        raise SubscriptionsUnavailable(type(e).__name__) from e
 
 @app.get("/api/subscriptions")
 async def get_subscriptions(request: Request):
@@ -359,7 +402,11 @@ async def get_subscriptions(request: Request):
     if not creds or not creds.valid:
         return {"error": "Not logged in"}
     
-    subs = fetch_subscriptions_internal(creds)
+    try:
+        subs = fetch_subscriptions_internal(creds)
+    except SubscriptionsUnavailable as e:
+        # Upstream failed. Do NOT return an empty list -- that is the bug this fixes.
+        return {"subscriptions": None, "error": f"訂閱清單暫時無法取得（{e}）"}
     return {"subscriptions": subs} # Return object to match frontend expectation
 
 import pydantic
@@ -480,7 +527,13 @@ async def get_videos(request: Request, category: str = "all", pageToken: str = "
             # If Logged In + Category All -> SHOW ONLY SUBSCRIPTIONS (Random Shuffle Feed)
             if category == 'all' and logged_in:
                 # 1. Get Subscriptions
-                subs = fetch_subscriptions_internal(creds, max_results=50)
+                try:
+                    subs = fetch_subscriptions_internal(creds, max_results=50)
+                except SubscriptionsUnavailable as e:
+                    print(f"[get_videos] feed=ABORT reason=subscriptions_unavailable detail={e}")
+                    return {"videos": [],
+                            "error": f"訂閱清單暫時無法取得（{e}）",
+                            "upstream_failed": True}
                 if subs:
                     # 2. Pick Random 10 Channels (Increased from 5 for better feed)
                     targets = random.sample(subs, k=min(len(subs), 10))
@@ -492,7 +545,10 @@ async def get_videos(request: Request, category: str = "all", pageToken: str = "
                         tasks.append(client.get(url))
                     
                     results = await asyncio.gather(*tasks, return_exceptions=True)
-                    
+
+                    ch_ok = sum(1 for r in results
+                                if isinstance(r, httpx.Response) and r.status_code == 200)
+                    ch_fail = len(results) - ch_ok
                     for res in results:
                         if isinstance(res, httpx.Response) and res.status_code == 200:
                             data = res.json()
@@ -521,6 +577,14 @@ async def get_videos(request: Request, category: str = "all", pageToken: str = "
                                 except Exception as e:
                                     print(f"Error parsing feed item: {e}")
                                     continue
+
+                    print(f"[get_videos] feed channels ok={ch_ok} fail={ch_fail} "
+                          f"videos={len(feed_videos)}")
+                    if ch_ok == 0 and ch_fail > 0:
+                        # Every channel failed -> upstream is down, NOT 'no new videos'.
+                        return {"videos": [],
+                                "error": f"上游影片服務暫時不可用（{ch_fail} 個頻道全數失敗）",
+                                "upstream_failed": True}
             
             # PUBLIC SEARCH LOGIC (Only if NOT (all + logged_in))
             search_videos = []
@@ -575,8 +639,13 @@ async def get_videos(request: Request, category: str = "all", pageToken: str = "
                     url += f"&page={pageToken}"
                 
                 resp = await client.get(url)
-                data = resp.json()
-                
+                data, up_err = classify_upstream(resp, expect_list=True)
+                if up_err:
+                    print(f"[get_videos] category={category} status=UPSTREAM_FAIL "
+                          f"http={resp.status_code} detail={up_err}")
+                    return {"videos": [], "error": up_err, "upstream_failed": True}
+
+                print(f"[get_videos] category={category} status=ok items={len(data)}")
                 if isinstance(data, list):
                     for item in data:
                          if 'videoId' not in item or 'title' not in item: continue
@@ -612,8 +681,11 @@ async def get_videos(request: Request, category: str = "all", pageToken: str = "
             return {"videos": unique_list, "nextPageToken": str(int(pageToken)+1) if pageToken and pageToken.isdigit() else "2"}
             
         except Exception as e:
-            print(f"Error proxying invidious: {e}")
-            return {"videos": [], "error": str(e)}
+            print(f"[get_videos] category={category} status=EXCEPTION "
+                  f"error_type={type(e).__name__} detail={scrub_secrets(e)}")
+            return {"videos": [],
+                    "error": f"上游服務連線失敗（{type(e).__name__}）",
+                    "upstream_failed": True}
 
 @app.get("/search")
 async def search_page(request: Request, q: str):
@@ -631,14 +703,21 @@ async def search_page(request: Request, q: str):
         blocklist = get_user_blocklist(user_id)
 
     videos = []
+    search_error = None
     async with httpx.AsyncClient() as client:
         try:
             resp = await client.get(
                 f"{INVIDIOUS_API_URL}/api/v1/search",
                 params={"q": q, "type": "video", "sort_by": "relevance"}
             )
-            data = resp.json()
-            print(f"[search] q='{q}' status={resp.status_code} items={len(data) if isinstance(data, list) else 'n/a'}")
+            data, up_err = classify_upstream(resp, expect_list=True)
+            if up_err:
+                print(f"[search] q='{q}' status=UPSTREAM_FAIL http={resp.status_code} detail={up_err}")
+                return templates.TemplateResponse(
+                    request, "results.html",
+                    {"query": q, "videos": [], "logged_in": logged_in, "error": up_err})
+
+            print(f"[search] q='{q}' status=ok items={len(data)}")
             for item in data:
                 if 'videoId' not in item or 'title' not in item:
                     continue
@@ -658,10 +737,14 @@ async def search_page(request: Request, q: str):
                     "view_count": item.get('viewCount', 0)
                 })
         except Exception as e:
-            print(f"search error: {e}")
+            print(f"[search] q='{q}' status=EXCEPTION "
+                  f"error_type={type(e).__name__} detail={scrub_secrets(e)}")
+            search_error = f"上游服務連線失敗（{type(e).__name__}）"
             videos = []
 
-    return templates.TemplateResponse(request, "results.html", {"query": q, "videos": videos, "logged_in": logged_in})
+    return templates.TemplateResponse(
+        request, "results.html",
+        {"query": q, "videos": videos, "logged_in": logged_in, "error": search_error})
 
 
 @app.get("/channel")
@@ -972,17 +1055,23 @@ async def manage_subscriptions(request: Request):
         return RedirectResponse("/login")
     
     logged_in = True
-    subs = fetch_subscriptions_internal(creds, max_results=200) # Fetch more for manager
-    
+    subs_error = None
+    try:
+        subs = fetch_subscriptions_internal(creds, max_results=200) # Fetch more for manager
+    except SubscriptionsUnavailable as e:
+        subs = []
+        subs_error = f"訂閱清單暫時無法取得（{e}）"
+
     items = []
     if subs:
         items = subs # Already in correct format: {title, channelId, thumbnail}
-        
+
     return templates.TemplateResponse(request, "manager.html", {
         "logged_in": logged_in,
         "title": "訂閱管理",
         "view_type": "subscriptions",
-        "items": items
+        "items": items,
+        "error": subs_error
     })
 
 @app.get("/manage/blocked", response_class=HTMLResponse)

@@ -1515,6 +1515,15 @@
                 // Update global cache
                 window.userSubscriptions = subs || [];
 
+                // Upstream failure must NOT render as 'No subscriptions found.'
+                if (data && data.error) {
+                    list.innerHTML = '<div style="padding:15px;color:#ffb3b3;background:#3a1e1e;border:1px solid #7a3535;border-radius:6px;">'
+                        + '<strong style="color:#ff6b6b;">無法取得訂閱清單</strong><br>'
+                        + data.error
+                        + '<br><span style="color:#c99;font-size:12px;">這不是「沒有訂閱」。</span></div>';
+                    return;
+                }
+
                 if (Array.isArray(subs) && subs.length > 0) {
                     subs.forEach(sub => {
                         const safeTitle = sub.title.replace(/'/g, "\\'");

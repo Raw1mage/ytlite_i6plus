@@ -2,11 +2,21 @@
 {% block content %}
 <div style="padding: 12px 10px; font-size: 16px; color: #eee; border-bottom: 1px solid #333; margin-bottom: 10px;">
     搜尋：<strong>{{ query }}</strong>
-    {% if videos|length == 0 %}
+    {% if error %}
+    <span style="color:#ff6b6b; font-size:13px;">（上游錯誤）</span>
+    {% elif videos|length == 0 %}
     <span style="color:#888; font-size:13px;">（無結果）</span>
     {% endif %}
     <a href="/" style="float:right; color:#3ea6ff; font-size:13px;">回首頁</a>
 </div>
+
+{% if error %}
+<div style="margin: 10px; padding: 14px; background: #3a1e1e; border: 1px solid #7a3535; border-radius: 6px; color: #ffb3b3; font-size: 14px; line-height: 1.6;">
+    <strong style="color:#ff6b6b;">無法取得搜尋結果</strong><br>
+    {{ error }}<br>
+    <span style="color:#c99; font-size:12px;">這不是「沒有結果」——上游影片服務目前無法回應，請稍後再試。</span>
+</div>
+{% endif %}
 
 <div class="video-grid">
     {% for video in videos %}
