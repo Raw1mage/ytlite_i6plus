@@ -70,10 +70,21 @@ graph TD
    - 輸出給 `base.html` 中渲染成 Cards。
 
 3. **背景下載流 (Download/Cache Flow)**：
-   - 使用者點選「下載 MP3」或背景自動快取 -> 發出 `/api/downloads/add` POST 請求。
-   - `queue_manager.add_job` 生成唯一 Job ID，丟入內部 Queue。
+   - 使用者點選「下載 MP3」或背景自動快取 -> 發出 `/api/download` POST 請求
+     （`main.py:1167`。**不是** `/api/downloads/add`，本文件曾誤記為後者，2026-08-09 實測更正：
+     整個 `webbox/src/middleware/` 內 `/api/downloads/add` 字面命中 0，控制組 `/api/download` 命中 29）。
+   - `queue_manager.add_job` 生成唯一 Job ID（uuid4），丟入內部 Queue。
    - `_worker` 背景協程透過 `downloader.py` (呼叫 yt-dlp) 開始抓取。進度寫入 Job dict。
+   - **mp3 後處理鏈（順序是承載性的）**：`FFmpegExtractAudio` → `FFmpegMetadata`（寫 ID3
+     title/artist/album）→ `EmbedThumbnail`（嵌封面）。搭配 opts 層的 `writethumbnail`。
+     yt-dlp 的 artist 回退鏈（`ffmpeg.py:751`）含 `uploader`，所以一般影片（無 artist 欄位）
+     拿到頻道名，`- Topic` 自動頻道則拿到真實演出者——故**不得加 `parse_metadata` 映射**，
+     那會覆蓋掉後者。mp3 的嵌圖走 ffmpeg（`embedthumbnail.py:90-96`），不需 mutagen；
+     ogg/opus/flac 分支才硬需求它（`:198`）。
    - 網頁透過 `/api/downloads` 輪詢取得即時 % 數，並在 UI (`dl-status-pill`) 上繪製進度。
+   - 清單移除與刪檔是**解耦的**：`DELETE /api/downloads/{job_id}?purge=bool`，`purge` 預設 `False`。
+     磁碟上的歷史檔經 `rescan_download_dir()` 重建時一律標 `archived`（**絕不是** `completed`，
+     後者會被前端自動存檔路徑當成「剛下載完可以從伺服器刪除」）。
 
 ---
 
