@@ -249,10 +249,14 @@
     async function autoSaveJob(job) {
         activeAutoSaves.add(job.job_id);
         try {
-            const success = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
-            if (success) {
+            const result = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
+            // DELETE removes the file from disk, so it needs positive evidence of a
+            // local copy -- never merely the absence of an error.
+            if (result === 'confirmed') {
                 await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
                 fetchDownloads();
+            } else {
+                showToast(`⬇️ 已傳送，伺服器副本保留（未能確認本機存檔）`);
             }
         } catch (e) {
             console.error("Auto save failed", e);
@@ -356,14 +360,18 @@
                 }
 
                 showToast(`✅ 已存檔: ${safeName}`);
-                return true;
+                // Only this path actually observed the bytes land on disk.
+                return 'confirmed';
             } catch (err) {
                 console.error("Silent download error:", err);
                 showToast(`自動存檔失敗: ${err.message}，將切換至手動模式。`);
             }
         }
 
-        // Normal fallback
+        // Normal fallback. A synthetic anchor click hands the transfer to the browser
+        // and gives us no completion callback, so we cannot know whether the file
+        // reached the device. Reporting success here would let the caller delete the
+        // server's only copy on a guess.
         const url = `/api/download_file/${jobId}`;
         const a = document.createElement('a');
         a.style.display = 'none';
@@ -371,7 +379,7 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        return true;
+        return 'unknown';
     }
 
     async function downloadAll(e) {
@@ -383,8 +391,9 @@
 
         for (const job of jobs) {
             try {
-                const success = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
-                if (success && useSilent) {
+                const result = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
+                // 'confirmed' is only returned by the path that verified the write.
+                if (result === 'confirmed') {
                     await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
                 }
                 if (!useSilent) await new Promise(r => setTimeout(r, 1500));

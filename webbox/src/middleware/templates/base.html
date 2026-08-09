@@ -2787,11 +2787,15 @@
             try {
                 // Since this is automatic, we don't want to spam toasts if many are finishing, 
                 // but one is good.
-                const success = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
-                if (success) {
+                const result = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
+                // DELETE removes the file from disk, not just from the list, so it must
+                // require positive evidence of a local copy -- never the absence of an error.
+                if (result === 'confirmed') {
                     // Automatically delete from server after successful local save
                     await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
                     fetchDownloads(); // Refresh list to remove it
+                } else {
+                    showToast(`⬇️ 已傳送，伺服器副本保留（未能確認本機存檔）`);
                 }
             } catch (err) {
                 console.error("Auto save failed", err);
@@ -2913,7 +2917,8 @@
                     }
 
                     showToast(`✅ 已存檔: ${safeName}`);
-                    return true;
+                    // Only this path actually observed the bytes land on disk.
+                    return 'confirmed';
                 } catch (err) {
                     console.error("Silent download error:", err);
                     showToast(`自動存檔失敗: ${err.message}，將切換至手動模式。`);
@@ -2921,13 +2926,17 @@
                 }
             }
 
-            // Normal fallback (Iframe)
+            // Normal fallback (Iframe). An injected iframe has NO load/error callback we
+            // can trust for a file download, so we cannot know whether the file reached
+            // the device -- on iOS 12 Safari least of all. Returning 'confirmed' here
+            // would let the caller delete the server's only copy on a guess, which is
+            // exactly how a completed download disappears before the user can save it.
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
             iframe.src = `/api/download_file/${jobId}`;
             document.body.appendChild(iframe);
             setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 60000);
-            return true;
+            return 'unknown';
         }
 
         // Override the old triggerFileDownload if present in parent scope?
@@ -2944,8 +2953,10 @@
 
             for (const job of jobs) {
                 try {
-                    const success = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
-                    if (success && useSilent) {
+                    const result = await triggerFileDownload(job.job_id, `${job.title}.${job.format}`);
+                    // 'confirmed' is only ever returned by the path that verified the write,
+                    // so it already implies useSilent; an unverified path keeps the copy.
+                    if (result === 'confirmed') {
                         // Delete from server after manual "Save All" trigger too
                         await fetch(`/api/downloads/${job.job_id}`, { method: 'DELETE' });
                     }
