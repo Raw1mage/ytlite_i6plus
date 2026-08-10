@@ -404,7 +404,13 @@
     }
 
     async function downloadAll(e) {
-        const jobs = currentJobs.filter(j => j.status === 'completed' || j.status === 'finished');
+        // 'archived' IS included here and MUST NOT be included in readyJobs (line ~237).
+        // The difference is not the status, it is who initiated: this function runs only
+        // from an explicit user click, while readyJobs runs from a 2-second poll. An
+        // archived row is a file the server found on disk that the user may never have
+        // fetched, so letting the poll touch it is what deleted 73 files in b29dd09.
+        // A deliberate click carries the intent that the poll cannot supply.
+        const jobs = currentJobs.filter(j => j.status === 'completed' || j.status === 'finished' || j.status === 'archived');
         if (jobs.length === 0) return showAlert('提示', '沒有可下載的項目。', e);
 
         const useSilent = !!window.downloadDirHandle;
