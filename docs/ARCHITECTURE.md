@@ -41,7 +41,37 @@ graph TD
 - **背景任務池**：使用 `asyncio.get_event_loop().run_in_executor()` 來執行 `yt-dlp` 這個容易產生阻擋行為的高延遲任務。
 - **分離式儲存策略**：
   - **`/app/data/downloads`**：給定長久保留的使用者下載音訊/影片。
-  - **`/app/data/cache`**：作為短期或自動快取區，並且有 `_enforce_cache_limit()` 定期清除舊的資源 (LRU 機制)。
+  - **`/app/data/cache`**：作為短期或自動快取區，並且有 `_enforce_cache_limit()` 定期清除舊的資源。
+    **注意：它現在是「建立時間排序」而非真正的 LRU**（2026-08-10）。唯一寫入 mtime 的
+    `os.utime` touch 附著在磁碟去重分支上，該分支已依使用者裁示移除（見下方「檔名即真實來源」），
+    所以重新請求的快取項不再移到驅逐佇列尾端。100MB 上限的驅逐本身仍運作。
+    保留 touch 就得保留「找到那個檔以便 touch」的查詢，而那個查詢正是被移除的東西。
+
+- **檔名策略：標題即檔名，且沒有伺服器端的下載歷史**（`7f9fda2`，2026-08-10）
+  - `outtmpl = '%(title,id).59s.%(ext)s'` + `windowsfilenames=True`。**落地那一刻就是純標題**，
+    不再是 `{video_id}.%(ext)s`。逗號 fallback 是承載性的：裸 `%(title)s` 在 title 缺失時
+    產出 `NA.mp3`，多支影片互相覆蓋。
+  - **最終路徑取自 yt-dlp 自報的 `info['requested_downloads'][0]['filepath']`**。
+    ⚠ **不是** top-level 的 `info['filepath']` —— 後者恆為 `None`。兩者同名但不同物件
+    （前者是 `extract_info` 回傳的 dict，後者是 postprocessor 收到的 dict）。實測坐實。
+    取不到時以嵌入 id 反查（`_locate_output`），**絕不編造路徑**；真的找不到就標 `error`，
+    因為一個 `completed` 但指向不存在檔案的 job 會讓存檔/刪除/大小全部壞掉而 UI 看起來正常。
+  - **byte 預算**：ext4 `NAME_MAX` 實測 255 bytes（256 即 `OSError errno=36`），而 `.59s`
+    數的是**字元不是 bytes**。所以衝突後綴與最長暫存後綴（`.f251.webm.part` = 15B）
+    必須**從 title 預算裡扣掉**，不可串接；截斷用 `_fit_bytes()` 逐字元累加，
+    不用 `errors='ignore'`（那會把「切壞了」偽裝成「切好了」）。
+  - **同標題衝突加 ` (2)` 後綴**。兩支不同影片可以有相同標題，舊的 `{video_id}` 命名
+    在結構上不可能發生這件事：同名 ⇒ 同路徑 ⇒ 後者靜默覆蓋前者，而 tag 仍是前者的 id。
+  - **伺服器不記得下載過什麼**（使用者裁示）。已移除：磁碟 `os.path.exists(f"{video_id}.{ext}")`
+    去重、`LEGACY_NAME` 分支、cache↔downloads 交叉複製。`add_job` 的 in-memory 迴圈
+    **必須把 `ARCHIVED_STATUS` 一併排除** —— `rescan` 會為磁碟上每個檔重建 job，
+    否則幾週前下載的檔會在此命中而回傳 archived job：**同一個「持久記憶」語意從記憶體
+    繞回來**。刪掉一條路徑不等於刪掉那個行為。
+  - **`video_id` 仍必須可還原，但那不是歷史記憶**：兩個模板各有一處把它插進
+    `https://i.ytimg.com/vi/${job.video_id}/default.jpg`。檔名改成標題後 stem 含空格與 `#`
+    會讓縮圖 URL 全壞，故 `rescan` 改為從檔案讀回真 id（xattr `user.ytlite.video_id` 為主、
+    ID3 `purl`/`TXXX` 為副、stem 為最後退路）。判準是「這個讀取是為了記得過去，
+    還是處理眼前這一次」——縮圖與「找剛下載完的那個檔」都屬後者。
 
 ### 2.3. Invidious 代理 (The Bone)
 - **職責**：因為直接 Parse YouTube 經常失敗，必須依賴 `ytlite-engine`。它不僅擋下 YouTube Rate-limit 的問題，還提供了簡化版的 REST API 供我們的 FastAPI 獲取 Metadata。
