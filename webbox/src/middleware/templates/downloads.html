@@ -310,7 +310,14 @@
             if (job.status === 'completed' || job.status === 'finished' || job.status === 'archived') {
                 // 'archived' shares the save button deliberately: saving is a USER action,
                 // and the automatic path (readyJobs -> autoSaveJob) never sees it.
-                actions += `<button class="dl-action-btn" onclick="triggerFileDownload('${job.job_id}', '${job.title.replace(/'/g, "\\'")}.${job.format}')" style="background:#4caf50; margin-right:5px;">Save</button>`;
+                // job_id ONLY -- deliberately NOT the title. triggerFileDownload's second
+                // argument is optional and the function already looks the job up by id, so
+                // passing the title bought nothing and cost everything: it crosses an HTML
+                // attribute boundary AND a JS string literal, while the old
+                // `.replace(/'/g, ...)` escaped exactly one of the characters that matter.
+                // 4 of the 60 real ID3 titles on disk contain a double quote, which
+                // terminates the attribute outright. A job_id is a uuid -- [0-9a-f-] only.
+                actions += `<button class="dl-action-btn" onclick="triggerFileDownload('${job.job_id}')" style="background:#4caf50; margin-right:5px;">Save</button>`;
                 if (job.status === 'archived') {
                     // Two separated actions, because one trash button cannot honestly mean
                     // both "stop showing this" and "destroy the bytes". Note this template
@@ -335,7 +342,7 @@
                 <div class="download-progress-bar" style="width: ${progress}%;"></div>
                 <img src="${thumbUrl}" class="dl-thumb" loading="lazy">
                 <div class="dl-info">
-                    <div class="dl-title">${job.title}</div>
+                    <div class="dl-title">${escapeHtml(job.title)}</div>
                     <div class="dl-meta">${meta}</div>
                 </div>
                 <div class="dl-status">

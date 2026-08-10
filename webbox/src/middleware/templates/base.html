@@ -1303,6 +1303,21 @@
         // duplicate lived here and was silently overwritten by that later definition, so
         // it never ran; removed to keep a single definition.
 
+        // Titles now come from ID3 tags, not from the video_id, so they carry
+        // arbitrary user-facing text. Anything interpolated into innerHTML must go
+        // through this first. Measured on the 60 real files on disk: 4 titles contain
+        // a double quote. 0 of them currently contain & < > -- but a count of 0 in
+        // today's sample is not a property of the code, only of today's sample, so
+        // this escapes the full set rather than the observed one.
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .split('&').join('&amp;')
+                .split('<').join('&lt;')
+                .split('>').join('&gt;')
+                .split('"').join('&quot;')
+                .split("'").join('&#39;');
+        }
+
         function showToast(text) {
             const msg = document.createElement('div');
             msg.innerText = text;
@@ -2856,7 +2871,17 @@
                     // 'archived' shares the save button but NOT the destructive one. What it
                     // must never get is the Cancel button of the trailing else -- an archived
                     // job has nothing in flight to cancel, and cancelJob sends purge=true.
-                    actions += `<button class="btn-icon-text bg-green" onclick="triggerFileDownload('${job.job_id}', '${job.title.replace(/'/g, "\\'")}.${job.format}')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> 存檔</button>`;
+                    // job_id ONLY -- deliberately NOT the title. triggerFileDownload's
+                    // second argument is optional and it already looks the job up by id,
+                    // so passing the title here bought nothing and cost everything: the
+                    // value crosses an HTML attribute boundary AND a JS string literal,
+                    // and the old `.replace(/'/g, ...)` escaped exactly one of the
+                    // characters that matter. 4 of the 60 real ID3 titles on disk contain
+                    // a double quote, which terminates the attribute outright. A job_id is
+                    // a uuid -- [0-9a-f-] only -- so nothing dangerous can reach either
+                    // layer. This is not "escape more characters"; it is "the string no
+                    // longer travels through the dangerous path at all".
+                    actions += `<button class="btn-icon-text bg-green" onclick="triggerFileDownload('${job.job_id}')"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> 存檔</button>`;
                     if (job.status === 'archived') {
                         // A history file gets TWO clearly separated actions, because one
                         // trash icon cannot honestly mean both. Hide is the safe default and
@@ -2888,7 +2913,7 @@
                 <div class="dl-progress-bg"><div class="dl-progress-bar" style="width:${progress}%"></div></div>
                 <img src="${thumb}" class="dl-thumb" loading="lazy">
                 <div class="dl-info">
-                    <div class="dl-title">${job.title}</div>
+                    <div class="dl-title">${escapeHtml(job.title)}</div>
                     <div class="dl-meta">${meta}</div>
                 </div>
                 <div style="font-size:12px; font-weight:bold; color:${statusColor}; margin-right:10px; min-width:50px; text-align:right;">${statusText}</div>
