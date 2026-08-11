@@ -11,7 +11,7 @@ services:
     environment:
       POSTGRES_DB: invidious
       POSTGRES_USER: kemal
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required - copy .env.example to .env}"
     restart: unless-stopped
     ports:
       - "1216:5432" # Optional: expose for debugging
@@ -43,7 +43,7 @@ services:
     volumes:
       - ./BUILD/invidious/config.yml:/invidious/config/config.yml
     environment:
-      INVIDIOUS_DATABASE_URL: postgres://kemal:password@invidious-db:5432/invidious
+      INVIDIOUS_DATABASE_URL: "postgres://kemal:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required - copy .env.example to .env}@invidious-db:5432/invidious"
       # Overrides invidious_companion_key from the mounted config.yml. Invidious
       # applies INVIDIOUS_<UPPERCASED_TOP_LEVEL_KEY> env vars BEFORE its empty /
       # CHANGE_ME / length checks (config.cr:208-268), so the file can ship with a
