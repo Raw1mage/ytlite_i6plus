@@ -1,6 +1,9 @@
 # BR_20260809: Docker Desktop 內建 registry proxy 反覆死亡，無人配置、無人監控、失敗訊息不指向真因
 
 **Status**: OPEN（已有繞路工具，未根治）
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — OPEN — 已判定，環境層阻塞（與 build path 同一條 kill chain）
+**Triage evidence**: REPRO：`docker info` 印 HTTP Proxy=http.docker.internal:3128，而 /dev/tcp/172.29.0.1/3128 REFUSED（控制組 127.0.0.1:1214 OPEN）。與 BR_docker_build_path 共用同一個失敗字串，應合併處置。
+
 **Filed**: 2026-08-09 by ses_01b36b5ffffeNy0N6OCtYnJm5n（ytlite 值星官）
 **Severity**: 中——不影響已運行容器，但**完全阻斷映像升級**，且症狀會被誤讀為網路問題
 **Owner**: 未指派（根治需使用者在 Docker Desktop UI 操作）

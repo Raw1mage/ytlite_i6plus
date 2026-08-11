@@ -3,7 +3,7 @@
 ## Current Status: Functional Search & Playback (Beta)
 
 ### Achievements
-- [x] **Core Services**: FastAPI backend, Invidious integration, and Redis caching are running.
+- [x] **Core Services**: FastAPI middleware, Invidious engine + companion, and PostgreSQL are running. (No Redis — the compose stack has never had one; this line claimed otherwise until 2026-08-11.)
 - [x] **Search**: Basic search functionality works (`/search?q=...`).
 - [x] **Playback**: Video playback via YouTube Iframe API works.
 - [x] **Navigation**: Basic "Back" button support implemented using History API (`pushState`/`popstate`).

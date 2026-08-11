@@ -1,6 +1,9 @@
 # BR_20260809: Invidious engine 對 YouTube API 拿到 400/500，首頁是可開的空殼
 
 **Status**: OPEN
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — FIXED — engine 升版後正面量到已修復
+**Triage evidence**: 三個逐字列出的失敗端點全部翻轉：trending 200/40670B/565ms、search 200/45803B/3330ms、videos 200/97007B/1392ms，皆帶真實中文標題。控制組（關鍵，因為同 repo 另一張 BR 證明 200 本身零價值）：瞎編路徑 200/0B/466µs ⇒ µs→ms 差三個數量級 + 數萬 bytes 真實內容，證明確實打到上游。修復原因：engine 由 2026.06.15-73a1bac 升至 2026.08.06-d6e4022。
+
 **Filed**: 2026-08-09 by ses_01b53d407ffeRF684F1oTgyEzr（opencode 值星官，服務恢復輪）
 **Severity**: 高——服務「看起來上線」但實際無任何內容
 **Owner**: 未指派（使用者將於 ytlite repo 自行開 agent）

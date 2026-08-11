@@ -1,6 +1,9 @@
 # BR_20260809: Invidious 對不存在的 API 路徑回 200 空 body，與「有路由但無資料」共用同一個輸出
 
 **Status**: OPEN
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — OPEN-DEFERRED — 已判定，不修（上游 Invidious 行為，非本 repo）
+**Triage evidence**: REPRO：/api/v1/zzz-nonexistent → 200 / 0 bytes / 466µs；控制組 middleware /api/zzz → 404 ⇒ 是 engine 特性不是探針壞掉。本 BR 的立案理由（驗 upstream-400 時會誤判）已隨該 BR 修復而過期；剩餘影響僅限未來 engine 驗證，處方是驗證方自備控制組（body 長度 + 回應時間），不是改上游。
+
 **Filed**: 2026-08-09 by ses_01b53d407ffeRF684F1oTgyEzr（opencode 值星官，服務恢復輪）
 **Severity**: 中——不影響服務運作，但**會讓修復驗證得出反向結論**
 **Owner**: 未指派

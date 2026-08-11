@@ -3,6 +3,9 @@
 - **Filed**: 2026-08-09
 - **Filed by**: ses_01b36b5ffffeNy0N6OCtYnJm5n（[★]main ytlite 值星官）
 - **Status**: OPEN
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — PARTIAL — invidious 已釘版，companion 仍漂移
+**Triage evidence**: 已修：compose:38 → invidious:2026.08.06-d6e4022 與 running 一致；postgres 實跑 14.20 對齊 compose 的 14。未修：companion 仍 latest，遠端 registry digest 298cad3d… 與本機不符；本機 invidious image 由 3 個增為 4 個。⚠ 摩擦：`docker inspect` 對 companion 回報 RepoDigests == Id ⇒ 拿它比對漂移是零判別力，必須走 registry HTTP HEAD。
+
 - **Severity**: low-medium（現況可運作，但重建時行為不可預測）
 - **Owner**: 未指派
 - **Family**: G-deploy-drift

@@ -1,6 +1,9 @@
 # BR: 下載失敗時留下的 .webp 縮圖是完全不可見的殘留
 
 - **Status**: OPEN (low severity, introduced by the mp3-metadata change and accepted with eyes open)
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — OPEN — 已判定，低優先（每次失敗約 100KB 靜默堆積）
+**Triage evidence**: REPRO（碼未動）：queue_manager.py:12 MEDIA_EXTS 仍不含 .webp；downloader.py:103 except → return False 無清理。現場 0 殘留僅因目錄於 2026-08-11 清空（釋放 306.5MB）。
+
 - **Filed**: 2026-08-09 by ses_01b36b5ffffeNy0N6OCtYnJm5n (dispatcher, during verification of the mp3-metadata work package)
 - **Component**: `webbox/src/middleware/downloader.py` (mp3 branch), `webbox/src/middleware/queue_manager.py:10` (`MEDIA_EXTS`)
 

@@ -1,6 +1,9 @@
 # BR_20260809: `python3 -m py_compile` 的權限失敗與語法失敗共用 rc=1，訊息裡有真因但 rc 不帶
 
 **Status**: OPEN
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — OPEN — 已判定，是 root-owned-dirs 的子項（修父即消失）
+**Triage evidence**: REPRO：py_compile → rc=1 `Permission denied: .../__pycache__/main.cpython-312.pyc`；控制組 ast.parse → SYNTAX_OK rc=0。錯誤訊息逐字指名 BR_root_owned_dirs 的目錄 ⇒ 嚴格因果父子，修 PYTHONDONTWRITEBYTECODE=1 或非 root 執行即消滅觸發條件。
+
 **Filed**: 2026-08-09 by ses_01b36b5ffffeNy0N6OCtYnJm5n（ytlite 值星官）
 **Reported-by**: ses_01aeeafd6ffeO3Js1AojHkn9zz（handler，主動揭露；即使它自己已繞過）
 **Severity**: 中——**會產生反向結論**：把「檢查跑不起來」讀成「被檢查物壞了」

@@ -3,6 +3,9 @@
 - **Filed**: 2026-08-09
 - **Filed by**: ses_01b36b5ffffeNy0N6OCtYnJm5n（[★]main ytlite 值星官）
 - **Status**: OPEN
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — PARTIAL — SERVER_SECRET_KEY 已修；postgres 密碼未修且**已在 public remote 上**（嚴重度升級）
+**Triage evidence**: 已修：compose:34/:51 改為 ${SERVER_SECRET_KEY:?}，webbox/.env 未 tracked 且被 .gitignore 忽略。未修且已外洩：origin/main:webbox/docker-compose.yml:14 POSTGRES_PASSWORD: password、:46 postgres://kemal:password@…、origin/main:webbox/BUILD/invidious/config.yml:13 password: kemal。BR 原本標為「未量測：是否曾推上 remote」現在有答案 —— `gh repo view` → visibility=PUBLIC（控制組 cli/cli 同樣 PUBLIC ⇒ 查詢有效）。⇒ 從「自架單機弱密碼」升級為「已公開的憑證」。**需使用者裁示**（本機服務未對外開放，實際可達性低，但字串已公開）。
+
 - **Severity**: medium（自架單機服務，非公開多租戶；但 secret 進 git 是不可逆的）
 - **Owner**: 未指派
 - **Family**: G-secret-hygiene

@@ -3,6 +3,9 @@
 **Filed**: 2026-08-09
 **Revised**: 2026-08-09 — 容器全退的成因已由 dispatcher 查明（使用者在 Windows 端操作 Docker Desktop，非主機層故障），本 BR 範圍收斂到真正的缺陷：PATH 注入層 fail-silent-and-misleading
 **Status**: OPEN
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — PARTIAL — 主症狀已被結構性移除，殘留未能判定
+**Triage evidence**: `command -v docker` → /usr/bin/docker rc=0（控制組 zzz-nosuch → 空 rc=1）。PATH 仍無 docker 注入，但 /usr/bin/docker 現為 symlink → /mnt/wsl/docker-desktop/cli-tools/... ⇒ 不再依賴注入。UNDECIDABLE：symlink 能否撐過 Docker Desktop 停止時的掛載重建，需一次停止事件才能量。
+
 **Severity**: MEDIUM — 不影響 production，但誤導性失敗訊號會讓調查者得出「docker 沒安裝」的反向結論
 **Owner**: unassigned
 **Related**: `BR_20260809_docker_desktop_registry_proxy_dies_silently_and_recurs.md`（同一個 Docker Desktop / WSL 整合層的不穩定；該張是 registry proxy 死，這張是整個 daemon + PATH 注入死，是更上游的同族故障）

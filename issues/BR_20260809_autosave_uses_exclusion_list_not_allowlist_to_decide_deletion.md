@@ -2,6 +2,9 @@
 
 **Filed**: 2026-08-09
 **Status**: OPEN-DEFERRED（使用者裁示 2026-08-09 停止本功能的後續開發，方向 3 不做）— 防禦深度債。事故已由狀態分離（`204b2ff`）阻斷，本 BR 是那道護欄底下的結構脆弱性
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — OPEN-DEFERRED — 已判定，不修（使用者裁示停止本功能開發）
+**Triage evidence**: ⚠ 立案前提已變：`1a2269f` 在兩個 `purge=true` 消費者（base.html:2999→3013、downloads.html:420→432）加入 archived，本 BR 原本宣稱的「七個 filter 皆不含 archived」已不成立；現由「使用者點擊 vs 2 秒輪詢」承擔。readyJobs 兩行仍逐字未動（sha 8d3add58 / 7d7f5238）。
+
 **Severity**: MEDIUM — 目前無害，但它是 2026-08-09 刪檔事故能夠發生的**結構條件**，且復發只需改動一行
 **Owner**: unassigned
 

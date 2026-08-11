@@ -3,6 +3,9 @@
 - **Filed**: 2026-08-09
 - **Filed by**: ses_01b36b5ffffeNy0N6OCtYnJm5n（[★]main ytlite 值星官）
 - **Status**: OPEN
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — OPEN — 已判定，低-中（擋 py_compile、擋清理、且會產生假 RCA）
+**Triage evidence**: REPRO：__pycache__ 與 data 皆 root:root（控制組 main.py 為 pkcs12:pkcs12）。BR 的「未量測：.gitignore 是否涵蓋」→ .gitignore:9 已涵蓋，該子疑慮劃掉。新增下游：它也產生了 webbox/refs/invidious/config/sql 這個空的 root-owned 掛載點，導致另一張 BR 誤判為 submodule 未初始化。
+
 - **Severity**: low-medium（會在需要清理或 git 操作時卡住，且是持續產生的）
 - **Owner**: 未指派
 - **Family**: G-deploy-drift

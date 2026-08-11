@@ -3,6 +3,9 @@
 - **Filed**: 2026-08-09
 - **Filed by**: ses_01b36b5ffffeNy0N6OCtYnJm5n（[★]main ytlite 值星官）
 - **Status**: OPEN — 現況不發作，但機制未移除
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — OPEN — 已判定，潛伏（機制在，現況不發作）
+**Triage evidence**: REPRO（機制）：main.py:278 include_granted_scopes='true' 未動。第二處命中在 docs/events/legacy_code_archive/app.py:494，非 live 路徑。UNDECIDABLE（是否發作）：需真人走一次 OAuth 同意流程，curl 零判別力。
+
 - **Severity**: medium（潛伏型：會在「專案裡多了一個 app」這個看似無關的動作後突然發作）
 - **Owner**: 未指派
 - **Family**: G-oauth

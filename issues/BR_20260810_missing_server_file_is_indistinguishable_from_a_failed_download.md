@@ -1,6 +1,9 @@
 # BR: 伺服器檔案不見了，與下載失敗共用同一個輸出（且那一列永遠清不掉）
 
 - **Status**: OPEN
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — OPEN — 已判定，低（碼仍在，但現況無受害對象）
+**Triage evidence**: REPRO（碼）：main.py:1222-1223 `not file_path or not os.path.exists()` 仍合併成同一個 404。前提已消失：/api/downloads 回 200 且 job 陣列長度 0、downloads 目錄 0 檔 ⇒ 目前不存在會卡住的死列。
+
 - **Filed**: 2026-08-10 by ses_01b36b5ffffeNy0N6OCtYnJm5n (dispatcher)
 - **Severity**: low（安全，但體驗上是靜默的死列）
 - **Owner**: downloads / archived-jobs family

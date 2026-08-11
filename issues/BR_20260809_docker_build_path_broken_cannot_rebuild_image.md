@@ -1,6 +1,9 @@
 # BR_20260809: docker build 路徑整條壞掉，ytlite image 無法 rebuild
 
 **Status**: OPEN
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — OPEN — 已判定，環境層阻塞（非本 repo 程式碼）
+**Triage evidence**: REPRO：`docker buildx ls` → desktop-linux STATUS=error；`curl --unix-socket /var/run/docker.sock /version` → 000 timeout 8.02s，控制組同 socket `/_ping` → 200 (9ms) ⇒ socket 活著，是 buildx driver 掛住。使用者代價：yt-dlp 釘死 2026.3.17 無法升。
+
 **Filed**: 2026-08-09 by ses_01b53d407ffeRF684F1oTgyEzr（opencode 值星官，服務恢復輪）
 **Severity**: 中——不影響「服務跑起來」，但**鎖死在 3 個月前的依賴上**
 **Owner**: 未指派

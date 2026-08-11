@@ -1,6 +1,9 @@
 # BR_20260809: refs/invidious submodule 未初始化，postgres initdb 掛載點是空目錄（潛伏型）
 
 **Status**: OPEN（潛伏——目前完全無害，且**完全看不出來**）
+**Triage**: 2026-08-11 by ses_01b36b5ffffeNy0N6OCtYnJm5n ([★]main) — OPEN — 已判定，⚠ 原 RCA 錯誤，建議修法無效（見下）
+**Triage evidence**: claim 證偽：`git submodule status` → 749791cd… 無 `-` 前綴 ⇒ 已初始化，refs/invidious/config/sql/ 有 9 個 .sql。真因是**路徑錯位**：compose:10 的 ./refs/… 相對於 webbox/，實測掛的是 webbox/refs/invidious/config/sql（root:root、0 entries），而 submodule 在 repo root 的 refs/。⇒ `git submodule update --init` 這個建議修法無效，要改的是 compose 路徑。（該空目錄本身是 root-owned-dirs 那張 BR 的機制產物 —— postgres 容器啟動時自動建出缺失掛載點。）
+
 **Filed**: 2026-08-09 by ses_01b53d407ffeRF684F1oTgyEzr（opencode 值星官，服務恢復輪）
 **Severity**: 低（現在）／高（一旦觸發）
 **Owner**: 未指派
